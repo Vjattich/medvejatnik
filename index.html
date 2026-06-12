@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gothic Lockpicker</title>
+    <style>
+        :root {
+            --block-scale: 1;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: orange;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #1a1a1a;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .controls label {
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            gap: 8px;
+            color: #ccc;
+        }
+
+        .controls input[type="range"],
+        .controls input[type="number"] {
+            cursor: pointer;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .scene {
+            perspective: 1200px;
+        }
+
+        .lock-mechanism {
+            position: relative;
+            width: 340px;
+            height: 200px;
+            transform-style: preserve-3d;
+            transform: scale(var(--block-scale)) rotateX(-30deg) rotateY(-40deg) rotateZ(0deg);
+            transition: transform 0.2s ease-out;
+        }
+
+        .plate {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.2s ease-out;
+            cursor: grab;
+        }
+
+        .plate:active {
+            cursor: grabbing;
+        }
+
+        .front-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2a2a2a, #111);
+            border: 5px solid #999;
+            border-radius: 30px;
+            box-sizing: border-box;
+            transform: translateZ(12px);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9);
+        }
+
+        .top-face {
+            position: absolute;
+            top: 0;
+            left: 30px;
+            width: calc(100% - 60px);
+            height: 24px;
+            background: #777;
+            border-top: 0px solid #444;
+            box-sizing: border-box;
+            transform-origin: top;
+            transform: translateZ(12px) rotateX(-90deg);
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            transform-style: preserve-3d;
+        }
+
+        .right-face {
+            position: absolute;
+            top: 29px;
+            right: 0;
+            width: 24px;
+            height: calc(100% - 60px);
+            background: #777;
+            border-right: 1px solid #777;
+            box-sizing: border-box;
+            transform-origin: right;
+            transform: translateZ(-11px) rotateY(90deg);
+        }
+
+        .left-face {
+            position: absolute;
+            top: 29px;
+            left: 0;
+            width: 24px;
+            height: calc(100% - 60px);
+            background: #777;
+            border-left: 1px solid #777;
+            box-sizing: border-box;
+            transform-origin: left;
+            transform: translateZ(-11px) rotateY(-90deg);
+        }
+
+        .bottom-face {
+            position: absolute;
+            bottom: 0;
+            left: 30px;
+            width: calc(100% - 60px);
+            height: 24px;
+            background: #777;
+            border-bottom: 0px solid #444;
+            box-sizing: border-box;
+            transform-origin: bottom;
+            transform: translateZ(12px) rotateX(90deg);
+        }
+
+        .corner-tube {
+            position: absolute;
+            width: 0;
+            height: 0;
+            transform-style: preserve-3d;
+        }
+
+        .tube-tr {
+            top: 30px;
+            right: 30px;
+        }
+
+        .tube-br {
+            bottom: 30px;
+            right: 30px;
+        }
+
+        .tube-bl {
+            bottom: 30px;
+            left: 30px;
+        }
+
+        .tube-tl {
+            top: 31px;
+            left: 30px;
+        }
+
+        .tube-panel {
+            position: absolute;
+            left: -5px;
+            top: -12px;
+            width: 8px;
+            height: 24px;
+            background: #777;
+            border-left: 1px solid #777;
+            transform-origin: center center;
+        }
+
+        .hole {
+            width: 12px;
+            height: 12px;
+            background-color: #000;
+            border-radius: 50%;
+            box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.3);
+            position: relative;
+            transform-style: preserve-3d;
+            z-index: 1;
+        }
+
+        .pin-hole {
+            z-index: 5;
+        }
+
+        .pin-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .pin {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 30% 30%, #e6b981, #b87333);
+            border-radius: 50%;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8);
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateZ(2px);
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <label>
+        Block Size (Scale):
+        <input type="range" id="sizeInput" min="0.5" max="2" step="0.1" value="1">
+    </label>
+    <label>
+        Amount of Blocks:
+        <input type="number" id="countInput" min="1" max="20" value="5">
+    </label>
+</div>
+
+<div class="scene">
+    <div class="lock-mechanism" id="lock">
+    </div>
+</div>
+
+<script>
+    const lock = document.getElementById('lock');
+    const sizeInput = document.getElementById('sizeInput');
+    const countInput = document.getElementById('countInput');
+    const pinUnderZ = 2;
+    const pinRaisedZ = 0;
+
+    function renderBlocks(count) {
+        lock.innerHTML = '';
+
+        const centerOffset = (count - 1) / 2;
+        const spacing = 45;
+
+        for (let i = 0; i < count; i++) {
+            const plate = document.createElement('div');
+            plate.className = 'plate';
+
+            const zPos = (i - centerOffset) * spacing;
+
+            plate.dataset.z = zPos;
+            plate.dataset.x = 0;
+            plate.style.transform = `translateZ(${zPos}px) translateX(0px)`;
+
+            let holesHtml = '';
+            for (let h = 0; h < 7; h++) {
+                if (h === 3) {
+                    holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper"><div class="pin"></div></div></div>`;
+                } else {
+                    holesHtml += `<div class="hole ` + h + `"></div>`;
+                }
+            }
+
+            let tubeHtml = '';
+            const corners = [
+                {class: 'tube-tr', startAngle: 0},
+                {class: 'tube-br', startAngle: 90},
+                {class: 'tube-bl', startAngle: 180},
+                {class: 'tube-tl', startAngle: 270}
+            ];
+
+            corners.forEach(corner => {
+                tubeHtml += `<div class="corner-tube ${corner.class}">`;
+                for (let a = 7.5; a < 90; a += 15) {
+                    let totalAngle = corner.startAngle + a;
+                    tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(-30px) rotateX(-90deg)"></div>`;
+                }
+                tubeHtml += '</div>';
+            });
+
+            plate.innerHTML = `
+                <div class="front-face"></div>
+                <div class="top-face">${holesHtml}</div>
+                <div class="right-face"></div>
+                <div class="bottom-face"></div>
+                <div class="left-face"></div>
+                ${tubeHtml}
+            `;
+
+            lock.appendChild(plate);
+        }
+    }
+
+    sizeInput.addEventListener('input', (e) => {
+        document.documentElement.style.setProperty('--block-scale', e.target.value);
+    });
+
+    countInput.addEventListener('input', (e) => {
+        let count = parseInt(e.target.value);
+        if (count > 0 && count <= 50) {
+            renderBlocks(count);
+        }
+    });
+
+    renderBlocks(5);
+
+
+    let activePlate = null;
+    let startMouseX = 0;
+    let initialPlateX = 0;
+
+    document.addEventListener('mousedown', (e) => {
+        const clickedPlate = e.target.closest('.plate');
+        if (!clickedPlate) return;
+
+        activePlate = clickedPlate;
+        startMouseX = e.clientX;
+        initialPlateX = parseFloat(activePlate.dataset.x) || 0;
+        activePlate.style.transition = 'none';
+
+        let pinWrapper = activePlate.querySelector('.pin-wrapper');
+        if (pinWrapper) pinWrapper.style.transition = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!activePlate) return;
+
+        let deltaX = (e.clientX - startMouseX) / (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1);
+        let newX = initialPlateX + deltaX;
+
+        if (newX < -120) newX = -120;
+        if (newX > 120) newX = 120;
+
+        activePlate.dataset.x = newX;
+        let zPos = activePlate.dataset.z;
+        activePlate.style.transform = `translateZ(${zPos}px) translateX(${newX}px)`;
+
+        let pinWrapper = activePlate.querySelector('.pin-wrapper');
+        let pin = activePlate.querySelector('.pin');
+
+        if (pinWrapper && pin) {
+            pinWrapper.style.transform = `translateX(${-newX}px)`;
+
+            let holeIndex = Math.round(newX / 36.5);
+
+            let distanceToHole = Math.abs(newX - (holeIndex * 36.5));
+
+            if (distanceToHole < 10) {
+                pin.style.transform = `translateZ(${pinRaisedZ}px)`;
+            } else {
+                pin.style.transform = `translateZ(${pinUnderZ}px)`;
+            }
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (activePlate) {
+            let currentX = parseFloat(activePlate.dataset.x) || 0;
+            let holeIndex = Math.round(currentX / 36.5);
+            let snappedX = holeIndex * 36.5;
+
+            activePlate.dataset.x = snappedX;
+            let zPos = activePlate.dataset.z;
+
+            activePlate.style.transition = 'transform 0.2s ease-out';
+            activePlate.style.transform = `translateZ(${zPos}px) translateX(${snappedX}px)`;
+
+            let pinWrapper = activePlate.querySelector('.pin-wrapper');
+            let pin = activePlate.querySelector('.pin');
+
+            if (pinWrapper && pin) {
+                pinWrapper.style.transition = 'transform 0.2s ease-out';
+                pinWrapper.style.transform = `translateX(${-snappedX}px)`;
+                pin.style.transform = `translateZ(${pinRaisedZ}px)`;
+            }
+            activePlate = null;
+        }
+    });
+
+</script>
+
+</body>
+</html>
