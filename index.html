@@ -21,7 +21,6 @@
             height: 100vh;
             overflow: hidden;
             user-select: none;
-            /* Prevents double-tap zooming on mobile */
             touch-action: none;
         }
 
@@ -70,7 +69,6 @@
             gap: 15px;
         }
 
-        /* Responsive controls for smaller screens */
         @media screen and (max-width: 600px) {
             .controls {
                 padding: 10px;
@@ -120,7 +118,6 @@
             transform-style: preserve-3d;
             transition: transform 0.2s ease-out;
             cursor: grab;
-            /* Prevents browser scrolling when touching the plates */
             touch-action: none;
         }
 
@@ -267,9 +264,15 @@
             width: 100%;
             height: 100%;
             transform-style: preserve-3d;
-            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transform: translateZ(-10px);
+            /* FIX: Removed 'opacity 0.1s ease-out' from the transition here */
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateZ(0px);
             z-index: 20;
+            opacity: 0;
+        }
+
+        .pin.pin-visible {
+            opacity: 1;
         }
 
         .pin-cap {
@@ -335,7 +338,6 @@
     const pinRaised = -10;
     const pinUnder = 0;
 
-    // --- MOBILE SCALE SETUP ---
     function setInitialScale() {
         const isMobile = window.innerWidth <= 768;
         const initialScale = isMobile ? 0.6 : 1;
@@ -343,15 +345,22 @@
         sizeInput.value = initialScale;
     }
     setInitialScale();
-    // --------------------------
 
-    function setPinUp(pin, isUp) {
-        pin.classList.toggle('pin-up', isUp);
-        pin.style.transform = `translateZ(${(isUp ? pinRaised : pinUnder)}px)`;
-    }
+    function updatePinState(pin, currentX) {
+        let holeIndex = Math.round(currentX / 36.5);
+        let distanceToHole = Math.abs(currentX - (holeIndex * 36.5));
 
-    function setPinBodyVisible(pin, isVisible) {
-        pin.classList.toggle('pin-body-visible', isVisible);
+        let isOverAnyHole = distanceToHole < 10;
+        let isCorrectHole = (holeIndex === 0);
+
+        pin.classList.toggle('pin-visible', isOverAnyHole);
+        pin.classList.toggle('pin-body-visible', isOverAnyHole);
+
+        if (isOverAnyHole && isCorrectHole) {
+            pin.style.transform = `translateZ(${pinRaised}px)`;
+        } else {
+            pin.style.transform = `translateZ(${pinUnder}px)`;
+        }
     }
 
     function renderPinBody() {
@@ -381,7 +390,7 @@
             let holesHtml = '';
             for (let h = 0; h < 7; h++) {
                 if (h === 3) {
-                    holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper"><div class="pin pin-body-visible">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
+                    holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${pinRaised}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;;
                 } else {
                     holesHtml += `<div class="hole ` + h + `"></div>`;
                 }
@@ -430,14 +439,10 @@
 
     renderBlocks(5);
 
-
     let activePlate = null;
     let startInputX = 0;
     let initialPlateX = 0;
 
-    // --- UNIFIED EVENT HANDLERS (MOUSE + TOUCH) ---
-
-    // Helper to get X position regardless of touch or mouse
     function getClientX(e) {
         return e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
     }
@@ -475,12 +480,7 @@
 
         if (pinWrapper && pin) {
             pinWrapper.style.transform = `translateX(${-newX}px)`;
-
-            let holeIndex = Math.round(newX / 36.5);
-            let distanceToHole = Math.abs(newX - (holeIndex * 36.5));
-
-            setPinUp(pin, distanceToHole < 3 && holeIndex === 0);
-            setPinBodyVisible(pin, distanceToHole < 3 && holeIndex === 0);
+            updatePinState(pin, newX);
         }
     }
 
@@ -502,19 +502,17 @@
             if (pinWrapper && pin) {
                 pinWrapper.style.transition = 'transform 0.2s ease-out';
                 pinWrapper.style.transform = `translateX(${-snappedX}px)`;
-                setPinUp(pin, holeIndex === 0);
-                setPinBodyVisible(pin, holeIndex === 0);
+                updatePinState(pin, snappedX);
             }
+
             activePlate = null;
         }
     }
 
-    // Bind Mouse Events
     document.addEventListener('mousedown', handleDragStart);
     document.addEventListener('mousemove', handleDragMove);
     document.addEventListener('mouseup', handleDragEnd);
 
-    // Bind Touch Events
     document.addEventListener('touchstart', handleDragStart, { passive: false });
     document.addEventListener('touchmove', handleDragMove, { passive: false });
     document.addEventListener('touchend', handleDragEnd);
