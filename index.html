@@ -318,6 +318,7 @@
         Amount of Blocks:
         <input type="number" id="countInput" min="1" max="20" value="5">
     </label>
+    <button id="resetBtn">Reset Lock</button>
 </div>
 
 <div class="scene">
@@ -329,15 +330,16 @@
     const lock = document.getElementById('lock');
     const sizeInput = document.getElementById('sizeInput');
     const countInput = document.getElementById('countInput');
+    const resetBtn = document.getElementById('resetBtn');
     const pinRaised = -10;
     const pinUnder = -5;
-    const LONG_PRESS_DURATION = 600;
+    const LONG_PRESS_DURATION = 500;
+    const SHORT_PRESS_DURATION = 100;
     const DRAG_THRESHOLD = 5;
 
     const gameState = {
         blocks: [],
         activeLinkerId: null,
-
         dragState: {
             activePlate: null,
             startInputX: 0,
@@ -476,6 +478,19 @@
         }
     });
 
+    resetBtn.addEventListener('click', () => {
+
+        gameState.blocks = [];
+
+        gameState.activeLinkerId = null;
+        gameState.dragState.activePlate = null;
+        gameState.dragState.movingGroup = [];
+        gameState.dragState.isDragging = false;
+        clearTimeout(gameState.dragState.longPressTimer);
+
+        renderBlocks(parseInt(countInput.value));
+    });
+
     renderBlocks(5);
 
     function getClientX(e) {
@@ -520,9 +535,10 @@
                     if (navigator.vibrate) navigator.vibrate(50);
 
                 } else {
+
                     let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
 
-                    if (masterBlock.group === curBlock.group) {
+                    if (masterBlock.group[curBlock.id]) {
                         if (masterBlock.group[curBlock.id] === 1) {
                             masterBlock.group[curBlock.id] = -1;
                             gameState.dragState.activePlate.classList.remove('linked-highlight');
@@ -534,6 +550,7 @@
                             gameState.dragState.activePlate.classList.remove('linked-highlight-reverse');
                         }
                     } else {
+
                         let oldGroup = curBlock.group;
 
                         Object.keys(oldGroup).forEach(k => {
@@ -542,7 +559,6 @@
 
                             let childBlock = gameState.blocks.find(x => x.id === kid);
                             if (childBlock) {
-                                childBlock.group = masterBlock.group;
 
                                 if (kid !== masterBlock.id) {
                                     if (masterBlock.group[kid] === 1) childBlock.el.classList.add('linked-highlight');
@@ -555,7 +571,7 @@
                     if (navigator.vibrate) navigator.vibrate(50);
                 }
             }
-        }, gameState.activeLinkerId ? LONG_PRESS_DURATION - 550 : LONG_PRESS_DURATION);
+        }, gameState.activeLinkerId ? SHORT_PRESS_DURATION : LONG_PRESS_DURATION);
     }
 
     function handleDragStart(e) {
@@ -567,11 +583,6 @@
         gameState.dragState.isDragging = false;
 
         const clickedId = parseInt(clickedPlate.dataset.id);
-
-        if (gameState.dragState.activePlate.classList.contains('selected')) {
-            longPress(clickedId);
-            return;
-        }
 
         gameState.dragState.movingGroup = [];
         let draggedBlock = gameState.blocks.find(b => b.id === clickedId);
@@ -601,11 +612,6 @@
 
     function handleDragMove(e) {
         if (!gameState.dragState.activePlate || gameState.dragState.movingGroup.length === 0) return;
-
-        if (gameState.dragState.activePlate.classList.contains('selected')) {
-            longPress(parseInt(gameState.dragState.activePlate.dataset.id));
-            return;
-        }
 
         let clientX = getClientX(e);
 
