@@ -264,7 +264,6 @@
             width: 100%;
             height: 100%;
             transform-style: preserve-3d;
-            /* FIX: Removed 'opacity 0.1s ease-out' from the transition here */
             transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             transform: translateZ(0px);
             z-index: 20;
@@ -336,7 +335,7 @@
     const sizeInput = document.getElementById('sizeInput');
     const countInput = document.getElementById('countInput');
     const pinRaised = -10;
-    const pinUnder = 0;
+    const pinUnder = -5;
 
     function setInitialScale() {
         const isMobile = window.innerWidth <= 768;
