@@ -346,12 +346,12 @@
             movingGroup: [],
             isDragging: false,
             longPressTimer: null
-        }
+        },
+        isMobile: window.innerWidth <= 768
     };
 
     function setInitialScale() {
-        const isMobile = window.innerWidth <= 768;
-        const initialScale = isMobile ? 0.6 : 1;
+        const initialScale = gameState.isMobile ? 0.65 : 1;
         document.documentElement.style.setProperty('--block-scale', initialScale);
         sizeInput.value = initialScale;
     }
@@ -385,7 +385,7 @@
     function renderBlocks(count) {
         lock.innerHTML = '';
         const centerOffset = (count - 1) / 2;
-        const spacing = 45;
+        const spacing = gameState.isMobile ? 55 : 50;
 
         const oldBlocks = new Map(gameState.blocks.map(b => [b.id, b]));
 
