@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gothic Lockpicker</title>
+    <link rel="icon" href="icon.png">
+    <style>
+
+        :root {
+            --block-scale: 1;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: orange;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #1a1a1a;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 250px;
+        }
+
+        /* --- MOBILE LAYOUT OVERRIDES --- */
+        @media screen and (max-width: 768px) {
+            body {
+                flex-direction: column;
+                justify-content: center;
+                padding-top: 0;
+            }
+
+            .scene {
+                order: 1; /* Lock mechanism on top */
+                margin-bottom: 40px;
+                margin-top: 0;
+            }
+
+            .controls {
+                order: 2; /* Controls below lock */
+                position: relative;
+                top: auto;
+                left: auto;
+                width: 85%;
+                max-width: 350px;
+                padding: 15px;
+                gap: 10px;
+                margin-bottom: 0;
+                z-index: 10;
+            }
+
+            /* Constrain solution list to single row on mobile */
+            .solution-list {
+                padding: 0 !important;
+                height: 32px;
+                min-height: 32px;
+                max-height: 32px !important;
+                overflow-y: hidden !important; /* Hide scrollbar completely */
+                scroll-behavior: smooth;
+            }
+
+            .solution-list div {
+                height: 32px;
+                line-height: 32px;
+                border-bottom: none !important;
+                text-align: center;
+                padding: 0 5px !important;
+            }
+        }
+
+        .controls label:not(.toggle-label) {
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+            gap: 8px;
+            color: #ccc;
+        }
+
+        .toggle-label {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            font-size: 13px;
+            gap: 8px;
+            color: #ccc;
+            cursor: pointer;
+        }
+
+        .toggle-label input {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            margin: 0;
+        }
+
+        .controls input[type="range"],
+        .controls input[type="number"] {
+            cursor: pointer;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .controls button {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .controls button:hover {
+            background: #444;
+        }
+
+        .controls button:disabled {
+            background: #222;
+            color: #666;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        #solve {
+            background: orange;
+            color: #111;
+        }
+        #solve:hover:not(:disabled) {
+            background: #ffa600;
+        }
+
+        /* --- NEW PLAYBACK LAYOUT --- */
+        .play-status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 30px;
+        }
+
+        .play-status-row button {
+            padding: 6px 15px;
+            font-size: 14px;
+            background: #66d437;
+            color: #111;
+            flex-shrink: 0;
+        }
+
+        .play-status-row button:hover:not(:disabled) {
+            background: #7aef48;
+        }
+
+        .step-controls-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .step-controls-row button {
+            padding: 6px 12px;
+            font-size: 14px;
+            background: #66d437;
+            color: #111;
+            flex-shrink: 0;
+        }
+
+        .step-controls-row button:hover:not(:disabled) {
+            background: #7aef48;
+        }
+
+        .status-message {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .status-error { color: #ff4444; }
+        .status-success { color: #66d437; }
+        .status-info { color: #37a1d4; }
+
+        .solution-list {
+            flex-grow: 1;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 13px;
+            font-family: monospace;
+            display: none;
+        }
+
+        .solution-list div {
+            padding: 4px 5px;
+            border-bottom: 1px solid #333;
+            transition: background 0.2s, color 0.2s;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .solution-list div:last-child {
+            border-bottom: none;
+        }
+
+        .solution-list div.active-step {
+            background: rgba(102, 212, 55, 0.2);
+            color: #7aef48;
+            font-weight: bold;
+        }
+
+        .scene {
+            perspective: 1200px;
+        }
+
+        .lock-mechanism {
+            position: relative;
+            width: 340px;
+            height: 200px;
+            transform-style: preserve-3d;
+            transform: scale(var(--block-scale)) rotateX(-30deg) rotateY(-40deg) rotateZ(0deg);
+            transition: transform 0.2s ease-out;
+        }
+
+        .plate {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.2s ease-out;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .plate:active {
+            cursor: grabbing;
+        }
+
+        .front-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2a2a2a, #111);
+            border: 5px solid #999;
+            border-radius: 30px;
+            box-sizing: border-box;
+            transform: translateZ(12px);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .top-face {
+            position: absolute;
+            top: 0;
+            left: 30px;
+            width: calc(100% - 60px);
+            height: 24px;
+            background: #777;
+            border-top: 0px solid #444;
+            box-sizing: border-box;
+            transform-origin: top;
+            transform: translateZ(12px) rotateX(-90deg);
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            transform-style: preserve-3d;
+        }
+
+        .right-face {
+            position: absolute;
+            top: 29px;
+            right: 0;
+            width: 24px;
+            height: calc(100% - 60px);
+            background: #777;
+            border-right: 1px solid #777;
+            box-sizing: border-box;
+            transform-origin: right;
+            transform: translateZ(-11px) rotateY(90deg);
+        }
+
+        .left-face {
+            position: absolute;
+            top: 29px;
+            left: 0;
+            width: 24px;
+            height: calc(100% - 60px);
+            background: #777;
+            border-left: 1px solid #777;
+            box-sizing: border-box;
+            transform-origin: left;
+            transform: translateZ(-11px) rotateY(-90deg);
+        }
+
+        .bottom-face {
+            position: absolute;
+            bottom: 0;
+            left: 30px;
+            width: calc(100% - 60px);
+            height: 24px;
+            background: #777;
+            border-bottom: 0px solid #444;
+            box-sizing: border-box;
+            transform-origin: bottom;
+            transform: translateZ(12px) rotateX(90deg);
+        }
+
+        .corner-tube {
+            position: absolute;
+            width: 0;
+            height: 0;
+            transform-style: preserve-3d;
+        }
+
+        .tube-tr { top: 30px; right: 30px; }
+        .tube-br { bottom: 30px; right: 30px; }
+        .tube-bl { bottom: 30px; left: 30px; }
+        .tube-tl { top: 31px; left: 30px; }
+
+        .tube-panel {
+            position: absolute;
+            left: -5px;
+            top: -12px;
+            width: 8px;
+            height: 24px;
+            background: #777;
+            border-left: 1px solid #777;
+            transform-origin: center center;
+        }
+
+        .hole {
+            width: 12px;
+            height: 12px;
+            background-color: #000;
+            border-radius: 50%;
+            box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.3);
+            position: relative;
+            transform-style: preserve-3d;
+            z-index: 1;
+        }
+
+        .pin-hole { z-index: 5; }
+
+        .pin-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .pin {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateZ(0px);
+            z-index: 20;
+            opacity: 0;
+        }
+
+        .pin.pin-visible { opacity: 1; }
+
+        .pin-cap {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 30% 30%, #e6b981, #b87333);
+            border-radius: 50%;
+            transform: translateZ(0);
+        }
+
+        .pin-body {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 19px;
+            opacity: 0;
+            transform-style: preserve-3d;
+            transform: translateZ(-0.4px);
+        }
+
+        .pin-side {
+            position: absolute;
+            top: 30%;
+            left: calc(50% - 1.5px);
+            width: 3px;
+            height: 18px;
+            background: linear-gradient(180deg, #b87333, #5a3212);
+            transform-origin: center top;
+            backface-visibility: hidden;
+        }
+
+        .pin.pin-body-visible .pin-body { opacity: 1; }
+
+        .plate.selected .front-face {
+            border-color: #66d437;
+            box-shadow: inset 0 0 20px rgba(102, 212, 55, 0.3), 0 0 15px rgba(102, 212, 55, 0.5);
+        }
+
+        .plate.linked-highlight .front-face {
+            border-color: #37a1d4;
+            box-shadow: inset 0 0 20px rgba(55, 161, 212, 0.3), 0 0 15px rgba(55, 161, 212, 0.5);
+        }
+
+        .plate.linked-highlight-reverse .front-face {
+            border-color: #d43737;
+            box-shadow: inset 0 0 20px rgba(212, 55, 55, 0.3), 0 0 15px rgba(212, 55, 55, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <label>
+        Scale:
+        <input type="range" id="sizeInput" min="0.3" max="2" step="0.1" value="1">
+    </label>
+    <label>
+        Amount of Blocks:
+        <input type="number" id="countInput" min="1" max="20" value="5">
+    </label>
+
+    <button id="resetBtn">Reset Lock</button>
+    <button id="solve">Solve Lock</button>
+
+    <label class="toggle-label" id="squashLabel" style="display: none;">
+        <input type="checkbox" id="squashMovesCheck" checked>
+        Squash
+    </label>
+
+    <div class="play-status-row">
+        <div id="statusMsg" class="status-message"></div>
+        <button id="playBtn" title="Play Full Solution" style="display: none;">▶ Play</button>
+    </div>
+
+    <div class="step-controls-row" id="stepControlsRow" style="display: none;">
+        <button id="prevBtn" title="Step Backward">⏮</button>
+        <div id="solutionList" class="solution-list"></div>
+        <button id="nextBtn" title="Step Forward">⏭</button>
+    </div>
+</div>
+
+<div class="scene">
+    <div class="lock-mechanism" id="lock">
+    </div>
+</div>
+
+<script>
+    const lock = document.getElementById('lock');
+    const sizeInput = document.getElementById('sizeInput');
+    const countInput = document.getElementById('countInput');
+    const resetBtn = document.getElementById('resetBtn');
+    const solveBtn = document.getElementById('solve');
+
+    const prevBtn = document.getElementById('prevBtn');
+    const playBtn = document.getElementById('playBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const stepControlsRow = document.getElementById('stepControlsRow');
+    const squashLabel = document.getElementById('squashLabel');
+    const squashMovesCheck = document.getElementById('squashMovesCheck');
+    const statusMsg = document.getElementById('statusMsg');
+    const solutionList = document.getElementById('solutionList');
+
+    const pinRaised = -10;
+    const pinUnder = -5;
+    const LONG_PRESS_DURATION = 500;
+    const SHORT_PRESS_DURATION = 100;
+    const DRAG_THRESHOLD = 5;
+    const HOLE_SPACING = 36.5;
+    const SOLVE_TIMEOUT_MS = 5000;
+
+    let currentSolution = null;
+    let currentStepIndex = 0;
+    let isPlaying = false;
+    let moveMap = []; // keep steps in DOM
+
+    const gameState = {
+        blocks: [],
+        activeLinkerId: null,
+        dragState: {
+            activePlate: null,
+            startInputX: 0,
+            movingGroup: [],
+            isDragging: false,
+            longPressTimer: null
+        },
+        isMobile: window.innerWidth <= 768
+    };
+
+    function setStatus(text, type = 'info') {
+        statusMsg.textContent = text;
+        statusMsg.className = `status-message status-${type}`;
+    }
+
+    function clearSolutionUI() {
+        currentSolution = null;
+        currentStepIndex = 0;
+        isPlaying = false;
+
+        playBtn.style.display = 'none';
+        stepControlsRow.style.display = 'none';
+        squashLabel.style.display = 'none';
+        solutionList.style.display = 'none';
+        solutionList.innerHTML = '';
+        setStatus("", "info");
+
+        solveBtn.disabled = false;
+    }
+
+    function createSolverWorker() {
+        const workerSource = `
+        const MIN = -3;
+        const MAX = 3;
+
+        self.onmessage = (event) => {
+          try {
+            const { n, start, effects, mode, timeoutMs } = event.data;
+            const result = solve(n, start, effects, mode, timeoutMs);
+            self.postMessage(result);
+          } catch (error) {
+            self.postMessage({ error: error?.message || "Solver worker failed." });
+          }
+        };
+
+        const keyOf = (values) => values.join(",");
+        const isGoal = (values) => values.every(v => v === 0);
+
+        const applyMove = (values, plate, direction, effects) => {
+          const delta = direction === "right" ? 1 : -1;
+          const next = [...values];
+
+          const add = (index, amount) => { next[index - 1] += amount; };
+          add(plate, delta);
+
+          const row = effects[plate - 1] || [];
+          for (let target = 1; target <= values.length; target++) {
+            if (target === plate) continue;
+            const relation = Number(row[target - 1] || 0);
+            if (relation === 0) continue;
+            add(target, relation === 1 ? delta : -delta);
+          }
+
+          if (next.some(v => v < MIN || v > MAX)) return null;
+          return next;
+        };
+
+        const moveKeyOf = (move) => move ? move.plate + ":" + move.direction : "";
+        const searchKeyOf = (values, lastMoveKey) => keyOf(values) + "|" + (lastMoveKey || "start");
+
+        const compareCosts = (a, b, mode) => {
+          if (mode === "shortest") {
+            if (a.moves !== b.moves) return a.moves - b.moves;
+            return a.groups - b.groups;
+          }
+          if (a.groups !== b.groups) return a.groups - b.groups;
+          return a.moves - b.moves;
+        };
+
+        const hasSameCost = (a, b) => !!a && !!b && a.moves === b.moves && a.groups === b.groups;
+
+        const createPriorityQueue = (compare) => {
+          const items = [];
+          const swap = (a, b) => { [items[a], items[b]] = [items[b], items[a]]; };
+
+          const bubbleUp = (index) => {
+            while (index > 0) {
+              const parent = Math.floor((index - 1) / 2);
+              if (compare(items[index], items[parent]) >= 0) break;
+              swap(index, parent);
+              index = parent;
+            }
+          };
+
+          const bubbleDown = (index) => {
+            while (true) {
+              const left = index * 2 + 1;
+              const right = index * 2 + 2;
+              let smallest = index;
+
+              if (left < items.length && compare(items[left], items[smallest]) < 0) smallest = left;
+              if (right < items.length && compare(items[right], items[smallest]) < 0) smallest = right;
+              if (smallest === index) break;
+
+              swap(index, smallest);
+              index = smallest;
+            }
+          };
+
+          return {
+            push: (value) => { items.push(value); bubbleUp(items.length - 1); },
+            pop: () => {
+              if (items.length === 0) return undefined;
+              const first = items[0];
+              const last = items.pop();
+              if (items.length > 0) { items[0] = last; bubbleDown(0); }
+              return first;
+            },
+            get length() { return items.length; }
+          };
+        };
+
+        const buildSolutionFromNodes = (goalIndex, nodes) => {
+          const moves = [];
+          const states = [];
+          let index = goalIndex;
+
+          while (index !== -1) {
+            const node = nodes[index];
+            states.push(node.values);
+            if (node.move) {
+              const count = node.move.count || 1;
+              for (let i = 0; i < count; i++) {
+                moves.push({ plate: node.move.plate, direction: node.move.direction });
+              }
+            }
+            index = node.prev;
+          }
+
+          moves.reverse();
+          states.reverse();
+          return { moves, states };
+        };
+
+        const solveWithPriority = (n, start, effects, mode, timeoutMs) => {
+          if (isGoal(start)) return { moves: [], states: [start] };
+
+          const nodes = [{ values: start, prev: -1, move: null, moves: 0, groups: 0, lastMoveKey: "" }];
+          const best = new Map([[searchKeyOf(start, ""), { moves: 0, groups: 0 }]]);
+          const queue = createPriorityQueue((a, b) => {
+            const result = compareCosts(nodes[a], nodes[b], mode);
+            return result !== 0 ? result : a - b;
+          });
+
+          queue.push(0);
+          const startTime = Date.now();
+
+          while (queue.length > 0) {
+            if (Date.now() - startTime > timeoutMs) return { timeout: true };
+
+            const currentIndex = queue.pop();
+            const current = nodes[currentIndex];
+            const currentKey = searchKeyOf(current.values, current.lastMoveKey);
+            const currentBest = best.get(currentKey);
+
+            if (!hasSameCost(current, currentBest)) continue;
+            if (isGoal(current.values)) return buildSolutionFromNodes(currentIndex, nodes);
+
+            for (let plate = 1; plate <= n; plate++) {
+              for (const direction of ["left", "right"]) {
+                const nextValues = applyMove(current.values, plate, direction, effects);
+                if (!nextValues) continue;
+
+                const move = { plate, direction };
+                const nextMoveKey = moveKeyOf(move);
+                const nextCost = {
+                  moves: current.moves + 1,
+                  groups: current.groups + (current.lastMoveKey === nextMoveKey ? 0 : 1)
+                };
+
+                const nextKey = searchKeyOf(nextValues, nextMoveKey);
+                const previousBest = best.get(nextKey);
+
+                if (previousBest && compareCosts(nextCost, previousBest, mode) >= 0) continue;
+
+                const nextIndex = nodes.length;
+                best.set(nextKey, nextCost);
+                nodes.push({
+                  values: nextValues, prev: currentIndex, move,
+                  moves: nextCost.moves, groups: nextCost.groups, lastMoveKey: nextMoveKey
+                });
+
+                queue.push(nextIndex);
+              }
+            }
+          }
+          return null;
+        };
+
+        const solveFastShortestMoves = (n, start, effects, timeoutMs) => {
+          if (isGoal(start)) return { moves: [], states: [start] };
+
+          const nodes = [{ values: start, prev: -1, move: null }];
+          const queue = [0];
+          const seen = new Set([keyOf(start)]);
+          let head = 0;
+          const startTime = Date.now();
+
+          while (head < queue.length) {
+            if (Date.now() - startTime > timeoutMs) return { timeout: true };
+            const currentIndex = queue[head++];
+            const current = nodes[currentIndex];
+
+            for (let plate = 1; plate <= n; plate++) {
+              for (const direction of ["left", "right"]) {
+                const nextValues = applyMove(current.values, plate, direction, effects);
+                if (!nextValues) continue;
+
+                const key = keyOf(nextValues);
+                if (seen.has(key)) continue;
+                seen.add(key);
+
+                const nextIndex = nodes.length;
+                nodes.push({ values: nextValues, prev: currentIndex, move: { plate, direction } });
+
+                if (isGoal(nextValues)) return buildSolutionFromNodes(nextIndex, nodes);
+                queue.push(nextIndex);
+              }
+            }
+          }
+          return null;
+        };
+
+        const solveFastFewerPlateSwitches = (n, start, effects, timeoutMs) => {
+          if (isGoal(start)) return { moves: [], states: [start] };
+
+          const nodes = [{ values: start, prev: -1, move: null }];
+          const queue = [0];
+          const seen = new Set([keyOf(start)]);
+          let head = 0;
+          const startTime = Date.now();
+
+          while (head < queue.length) {
+            if (Date.now() - startTime > timeoutMs) return { timeout: true };
+            const currentIndex = queue[head++];
+            const current = nodes[currentIndex];
+
+            for (let plate = 1; plate <= n; plate++) {
+              for (const direction of ["left", "right"]) {
+                let chainValues = current.values;
+
+                for (let count = 1; ; count++) {
+                  chainValues = applyMove(chainValues, plate, direction, effects);
+                  if (!chainValues) break;
+
+                  const key = keyOf(chainValues);
+                  if (seen.has(key)) continue;
+                  seen.add(key);
+
+                  const nextIndex = nodes.length;
+                  nodes.push({ values: chainValues, prev: currentIndex, move: { plate, direction, count } });
+
+                  if (isGoal(chainValues)) return buildSolutionFromNodes(nextIndex, nodes);
+                  queue.push(nextIndex);
+                }
+              }
+            }
+          }
+          return null;
+        };
+
+        const solve = (n, start, effects, mode, timeoutMs) => {
+          if (mode === "shortest") return solveWithPriority(n, start, effects, "shortest", timeoutMs);
+          if (mode === "shortest-fast") return solveFastShortestMoves(n, start, effects, timeoutMs);
+          if (mode === "fewer-switches-fast") return solveFastFewerPlateSwitches(n, start, effects, timeoutMs);
+          return solveWithPriority(n, start, effects, "fewer-switches", timeoutMs);
+        };
+        `;
+
+        const blob = new Blob([workerSource], { type: "text/javascript" });
+        const workerUrl = URL.createObjectURL(blob);
+        const worker = new Worker(workerUrl);
+
+        worker.releaseUrl = () => URL.revokeObjectURL(workerUrl);
+        return worker;
+    }
+
+    function compactSetup() {
+        const n = gameState.blocks.length;
+        const start = gameState.blocks.map(b => Math.round(b.x / HOLE_SPACING));
+        const effects = [];
+
+        for (let i = 0; i < n; i++) {
+            const row = [];
+            for (let j = 0; j < n; j++) {
+                const targetId = j + 1;
+                const relation = gameState.blocks[i].group[targetId] || 0;
+                row.push(relation);
+            }
+            effects.push(row);
+        }
+
+        return { n, start, effects };
+    }
+
+    function solveInWorker() {
+        if (!window.Worker) return Promise.reject(new Error("Web Workers are not supported."));
+
+        const setup = compactSetup();
+        const payload = {
+            n: setup.n,
+            start: setup.start,
+            effects: setup.effects,
+            mode: "fewer-switches-fast",
+            timeoutMs: SOLVE_TIMEOUT_MS
+        };
+
+        return new Promise((resolve, reject) => {
+            const worker = createSolverWorker();
+
+            const hardTimeout = setTimeout(() => {
+                worker.terminate();
+                worker.releaseUrl();
+                resolve({ timeout: true });
+            }, SOLVE_TIMEOUT_MS + 1000);
+
+            worker.onmessage = (event) => {
+                clearTimeout(hardTimeout);
+                worker.terminate();
+                worker.releaseUrl();
+                if (event.data?.error) reject(new Error(event.data.error));
+                else resolve(event.data);
+            };
+
+            worker.onerror = (error) => {
+                clearTimeout(hardTimeout);
+                worker.terminate();
+                worker.releaseUrl();
+                reject(error);
+            };
+
+            worker.postMessage(payload);
+        });
+    }
+
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    function applySingleMove(move, reverse = false) {
+        const primaryBlock = gameState.blocks[move.plate - 1];
+        let stepShift = (move.direction === "left") ? -HOLE_SPACING : HOLE_SPACING;
+
+        if (reverse) {
+            stepShift *= -1;
+        }
+
+        let draggedBlockPolarity = primaryBlock.group[primaryBlock.id] || 1;
+
+        Object.keys(primaryBlock.group).forEach(idStr => {
+            const id = parseInt(idStr);
+            const relativeDir = (primaryBlock.group[id] * draggedBlockPolarity);
+            const b = gameState.blocks.find(x => x.id === id);
+
+            if (b) {
+                let newX = b.x + (stepShift * relativeDir);
+                const maxBound = 3 * HOLE_SPACING;
+
+                if (newX > maxBound) newX = maxBound;
+                if (newX < -maxBound) newX = -maxBound;
+
+                b.x = newX;
+                b.el.style.transition = 'transform 0.2s ease-out';
+                b.el.style.transform = `translateZ(${b.z}px) translateX(${newX}px)`;
+
+                if (b.pinWrapper && b.pin) {
+                    b.pinWrapper.style.transition = 'transform 0.2s ease-out';
+                    b.pinWrapper.style.transform = `translateX(${-newX}px)`;
+                    updatePinState(b.pin, newX);
+                }
+            }
+        });
+    }
+
+    function updatePlaybackUI() {
+        if (!currentSolution) return;
+
+        prevBtn.disabled = (currentStepIndex === 0) || isPlaying;
+        nextBtn.disabled = (currentStepIndex === currentSolution.length) || isPlaying;
+        playBtn.disabled = (currentStepIndex === currentSolution.length) || isPlaying;
+        solveBtn.disabled = isPlaying;
+
+        Array.from(solutionList.children).forEach(el => el.classList.remove('active-step'));
+
+        if (currentStepIndex < currentSolution.length) {
+            let activeDomIndex = moveMap[currentStepIndex];
+            if (activeDomIndex !== undefined && solutionList.children[activeDomIndex]) {
+                let activeEl = solutionList.children[activeDomIndex];
+                activeEl.classList.add('active-step');
+                activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        } else if (currentSolution.length > 0) {
+            let lastDomIndex = moveMap[currentSolution.length - 1];
+            if (lastDomIndex !== undefined && solutionList.children[lastDomIndex]) {
+                solutionList.children[lastDomIndex].classList.add('active-step');
+            }
+        }
+    }
+
+    function renderSolutionList() {
+        if (!currentSolution) return;
+        solutionList.innerHTML = '';
+        moveMap = [];
+
+        let movesToRender = [];
+        let domIndex = 0;
+
+        if (squashMovesCheck.checked) {
+            currentSolution.forEach((m, i) => {
+                let last = movesToRender[movesToRender.length - 1];
+                if (last && last.plate === m.plate && last.direction === m.direction) {
+                    last.count++;
+                    moveMap[i] = domIndex - 1;
+                } else {
+                    movesToRender.push({ ...m, count: 1 });
+                    moveMap[i] = domIndex;
+                    domIndex++;
+                }
+            });
+        } else {
+            currentSolution.forEach((m, i) => {
+                movesToRender.push({ ...m, count: 1 });
+                moveMap[i] = i;
+            });
+        }
+
+        movesToRender.forEach((m, index) => {
+            const step = document.createElement('div');
+            const icon = m.direction === 'left' ? '←' : '→';
+            let text = `${index + 1}. Block ${m.plate} ${icon} ${m.direction.toUpperCase()}`;
+            if (m.count > 1) {
+                text += ` (x${m.count})`;
+            }
+            step.textContent = text;
+            solutionList.appendChild(step);
+        });
+
+        updatePlaybackUI();
+    }
+
+    squashMovesCheck.addEventListener('change', renderSolutionList);
+
+    solveBtn.addEventListener('click', async () => {
+        clearSolutionUI();
+
+        solveBtn.textContent = "Solving...";
+        solveBtn.disabled = true;
+        setStatus("Calculating solution...", "info");
+
+        try {
+            const result = await solveInWorker();
+
+            if (result.timeout) {
+                setStatus("Solver timed out! Try adjusting parameters.", "error");
+            } else if (!result || !result.moves) {
+                setStatus("No solution found from this state.", "error");
+            } else if (result.moves.length === 0) {
+                setStatus("Lock is already solved!", "success");
+            } else {
+                currentSolution = result.moves;
+                currentStepIndex = 0;
+                setStatus(`Solution found: ${result.moves.length} moves!`, "success");
+
+                playBtn.style.display = 'block';
+                stepControlsRow.style.display = 'flex';
+                squashLabel.style.display = 'flex';
+                solutionList.style.display = 'block';
+
+                renderSolutionList();
+            }
+        } catch (error) {
+            setStatus("Solver crashed: " + error.message, "error");
+        } finally {
+            solveBtn.textContent = "Solve Lock";
+            if (!isPlaying) solveBtn.disabled = false;
+        }
+    });
+
+    nextBtn.addEventListener('click', () => {
+        if (!currentSolution || isPlaying || currentStepIndex >= currentSolution.length) return;
+        applySingleMove(currentSolution[currentStepIndex], false);
+        currentStepIndex++;
+        updatePlaybackUI();
+    });
+
+    prevBtn.addEventListener('click', () => {
+        if (!currentSolution || isPlaying || currentStepIndex <= 0) return;
+        applySingleMove(currentSolution[currentStepIndex - 1], true);
+        currentStepIndex--;
+        updatePlaybackUI();
+    });
+
+    playBtn.addEventListener('click', async () => {
+        if (!currentSolution || currentStepIndex >= currentSolution.length || isPlaying) return;
+
+        isPlaying = true;
+        setStatus("Playing sequence...", "info");
+        updatePlaybackUI();
+
+        while (currentStepIndex < currentSolution.length && isPlaying) {
+            applySingleMove(currentSolution[currentStepIndex], false);
+            currentStepIndex++;
+            updatePlaybackUI();
+            await sleep(300);
+        }
+
+        isPlaying = false;
+        setStatus("Sequence complete!", "success");
+        updatePlaybackUI();
+    });
+
+    function setInitialScale() {
+        const initialScale = gameState.isMobile ? 0.65 : 1;
+        document.documentElement.style.setProperty('--block-scale', initialScale);
+        sizeInput.value = initialScale;
+    }
+    setInitialScale();
+
+    function updatePinState(pin, currentX) {
+        let holeIndex = Math.round(currentX / HOLE_SPACING);
+        let distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING));
+
+        let isOverAnyHole = distanceToHole < 10;
+        let isCorrectHole = (holeIndex === 0);
+
+        pin.classList.toggle('pin-visible', isOverAnyHole);
+        pin.classList.toggle('pin-body-visible', isOverAnyHole);
+
+        if (isOverAnyHole && isCorrectHole) {
+            pin.style.transform = `translateZ(${pinRaised}px)`;
+        } else {
+            pin.style.transform = `translateZ(${pinUnder}px)`;
+        }
+    }
+
+    function renderPinBody() {
+        let sidesHtml = '';
+        for (let s = 0; s < 16; s++) {
+            sidesHtml += `<div class="pin-side" style="transform: rotateZ(${s * 22.5}deg) translateY(-6px) rotateX(90deg)"></div>`;
+        }
+        return `<div class="pin-body">${sidesHtml}<div></div></div>`;
+    }
+
+    function renderBlocks(count) {
+        lock.innerHTML = '';
+        const centerOffset = (count - 1) / 2;
+        const spacing = gameState.isMobile ? 55 : 50;
+        const oldBlocks = new Map(gameState.blocks.map(b => [b.id, b]));
+
+        gameState.blocks = [];
+        gameState.activeLinkerId = null;
+
+        for (let i = 0; i < count; i++) {
+            const id = i + 1;
+            const zPos = (centerOffset - i) * spacing;
+            let prevX = oldBlocks.has(id) ? oldBlocks.get(id).x : 0;
+
+            const plate = document.createElement('div');
+            plate.className = 'plate';
+            plate.dataset.id = id;
+
+            let holesHtml = '';
+            for (let h = 0; h < 7; h++) {
+                if (h === 3) {
+                    holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${pinRaised}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
+                } else {
+                    holesHtml += `<div class="hole ` + h + `"></div>`;
+                }
+            }
+
+            let tubeHtml = '';
+            const corners = [
+                {class: 'tube-tr', startAngle: 0}, {class: 'tube-br', startAngle: 90},
+                {class: 'tube-bl', startAngle: 180}, {class: 'tube-tl', startAngle: 270}
+            ];
+
+            corners.forEach(corner => {
+                tubeHtml += `<div class="corner-tube ${corner.class}">`;
+                for (let a = 7.5; a < 90; a += 15) {
+                    let totalAngle = corner.startAngle + a;
+                    tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(-30px) rotateX(-90deg)"></div>`;
+                }
+                tubeHtml += '</div>';
+            });
+
+            plate.innerHTML = `
+                <div class="front-face"></div>
+                <div class="top-face">${holesHtml}</div>
+                <div class="right-face"></div>
+                <div class="bottom-face"></div>
+                <div class="left-face"></div>
+                ${tubeHtml}
+            `;
+
+            plate.style.transform = `translateZ(${zPos}px) translateX(${prevX}px)`;
+
+            lock.prepend(plate);
+
+            gameState.blocks.push({
+                id: id,
+                x: prevX,
+                z: zPos,
+                el: plate,
+                pinWrapper: plate.querySelector('.pin-wrapper'),
+                pin: plate.querySelector('.pin'),
+                group: { [id]: 1 }
+            });
+
+            if (plate.querySelector('.pin')) updatePinState(plate.querySelector('.pin'), prevX);
+        }
+
+        gameState.blocks.forEach(block => {
+            if (oldBlocks.has(block.id)) {
+                let oldGroup = oldBlocks.get(block.id).group;
+
+                if (!oldGroup.__newGroupRef) {
+                    let newSharedGroup = {};
+                    Object.keys(oldGroup).forEach(k => {
+                        let kid = parseInt(k);
+                        if (kid <= count) newSharedGroup[kid] = oldGroup[k];
+                    });
+                    oldGroup.__newGroupRef = newSharedGroup;
+                }
+                block.group = oldGroup.__newGroupRef;
+            }
+        });
+    }
+
+    sizeInput.addEventListener('input', (e) => {
+        document.documentElement.style.setProperty('--block-scale', e.target.value);
+    });
+
+    countInput.addEventListener('input', (e) => {
+        let count = parseInt(e.target.value);
+        if (count > 0 && count <= 50) renderBlocks(count);
+    });
+
+    resetBtn.addEventListener('click', () => {
+        clearSolutionUI();
+
+        gameState.blocks = [];
+        gameState.activeLinkerId = null;
+        gameState.dragState.activePlate = null;
+        gameState.dragState.movingGroup = [];
+        gameState.dragState.isDragging = false;
+        clearTimeout(gameState.dragState.longPressTimer);
+
+        renderBlocks(parseInt(countInput.value));
+    });
+
+    renderBlocks(5);
+
+    function getClientX(e) {
+        return e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+    }
+
+    function longPress(clickedId) {
+        clearTimeout(gameState.dragState.longPressTimer);
+
+        gameState.dragState.longPressTimer = setTimeout(() => {
+            if (!gameState.dragState.isDragging && gameState.dragState.activePlate) {
+                let curBlock = gameState.blocks.find(b => b.id === clickedId);
+                if (!curBlock) return;
+
+                if (gameState.activeLinkerId === null) {
+
+                    gameState.activeLinkerId = curBlock.id;
+                    gameState.dragState.activePlate.classList.add('selected');
+
+                    Object.keys(curBlock.group).forEach(idStr => {
+                        let id = parseInt(idStr);
+                        if (id !== curBlock.id) {
+                            let b = gameState.blocks.find(x => x.id === id);
+                            if (b) {
+                                if (curBlock.group[id] === 1) b.el.classList.add('linked-highlight');
+                                else b.el.classList.add('linked-highlight-reverse');
+                            }
+                        }
+                    });
+
+                    if (navigator.vibrate) navigator.vibrate(50);
+
+                } else if (gameState.activeLinkerId === curBlock.id) {
+
+                    gameState.activeLinkerId = null;
+                    gameState.dragState.activePlate.classList.remove('selected');
+
+                    document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => {
+                        el.classList.remove('linked-highlight', 'linked-highlight-reverse');
+                    });
+
+                    if (navigator.vibrate) navigator.vibrate(50);
+
+                } else {
+
+                    let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
+
+                    if (masterBlock.group[curBlock.id]) {
+                        if (masterBlock.group[curBlock.id] === 1) {
+                            masterBlock.group[curBlock.id] = -1;
+                            gameState.dragState.activePlate.classList.remove('linked-highlight');
+                            gameState.dragState.activePlate.classList.add('linked-highlight-reverse');
+
+                        } else if (masterBlock.group[curBlock.id] === -1) {
+                            delete masterBlock.group[curBlock.id];
+                            curBlock.group = { [curBlock.id]: 1 };
+                            gameState.dragState.activePlate.classList.remove('linked-highlight-reverse');
+                        }
+                    }
+                    else {
+                        masterBlock.group[curBlock.id] = 1;
+                        gameState.dragState.activePlate.classList.add('linked-highlight');
+                    }
+
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
+            }
+        }, gameState.activeLinkerId ? SHORT_PRESS_DURATION : LONG_PRESS_DURATION);
+    }
+
+    function handleDragStart(e) {
+        const clickedPlate = e.target.closest('.plate');
+        if (!clickedPlate) return;
+
+        if (currentSolution) clearSolutionUI();
+
+        gameState.dragState.activePlate = clickedPlate;
+        gameState.dragState.startInputX = getClientX(e);
+        gameState.dragState.isDragging = false;
+
+        const clickedId = parseInt(clickedPlate.dataset.id);
+
+        gameState.dragState.movingGroup = [];
+        let draggedBlock = gameState.blocks.find(b => b.id === clickedId);
+        if (!draggedBlock) return;
+
+        let draggedBlockPolarity = draggedBlock.group[draggedBlock.id] || 1;
+
+        Object.keys(draggedBlock.group).forEach(idStr => {
+            let id = parseInt(idStr);
+            let rawDir = draggedBlock.group[id];
+            let relativeDir = rawDir * draggedBlockPolarity;
+
+            let b = gameState.blocks.find(x => x.id === id);
+            if (b) {
+                gameState.dragState.movingGroup.push({
+                    block: b,
+                    dir: relativeDir,
+                    initialX: b.x
+                });
+                b.el.style.transition = 'none';
+                if (b.pinWrapper) b.pinWrapper.style.transition = 'none';
+            }
+        });
+
+        longPress(clickedId);
+    }
+
+    function handleDragMove(e) {
+        if (!gameState.dragState.activePlate || gameState.dragState.movingGroup.length === 0) return;
+
+        let clientX = getClientX(e);
+
+        if (Math.abs(clientX - gameState.dragState.startInputX) > DRAG_THRESHOLD) {
+            gameState.dragState.isDragging = true;
+            clearTimeout(gameState.dragState.longPressTimer);
+        }
+
+        let scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
+        let rawDeltaX = (clientX - gameState.dragState.startInputX) / scale;
+
+        let minDeltaX = -Infinity;
+        let maxDeltaX = Infinity;
+
+        gameState.dragState.movingGroup.forEach(item => {
+            let limitLeft = item.dir === 1 ? -120 - item.initialX : item.initialX - 120;
+            let limitRight = item.dir === 1 ? 120 - item.initialX : item.initialX + 120;
+
+            if (limitLeft > minDeltaX) minDeltaX = limitLeft;
+            if (limitRight < maxDeltaX) maxDeltaX = limitRight;
+        });
+
+        let deltaX = rawDeltaX;
+        if (deltaX < minDeltaX) deltaX = minDeltaX;
+        if (deltaX > maxDeltaX) deltaX = maxDeltaX;
+
+        gameState.dragState.movingGroup.forEach(item => {
+            let newX = item.initialX + (deltaX * item.dir);
+            item.currentX = newX;
+
+            item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${newX}px)`;
+
+            if (item.block.pinWrapper && item.block.pin) {
+                item.block.pinWrapper.style.transform = `translateX(${-newX}px)`;
+                updatePinState(item.block.pin, newX);
+            }
+        });
+    }
+
+    function handleDragEnd() {
+        clearTimeout(gameState.dragState.longPressTimer);
+
+        if (gameState.dragState.activePlate && gameState.dragState.movingGroup.length > 0 && gameState.dragState.isDragging) {
+            const clickedId = parseInt(gameState.dragState.activePlate.dataset.id);
+            let primary = gameState.dragState.movingGroup.find(item => item.block.id === clickedId) || gameState.dragState.movingGroup[0];
+
+            let currentX = primary.currentX !== undefined ? primary.currentX : primary.initialX;
+            let holeIndex = Math.round(currentX / HOLE_SPACING);
+            let snappedX = holeIndex * HOLE_SPACING;
+
+            let snapDelta = snappedX - currentX;
+
+            let maxAllowedShiftRight = Infinity;
+            let maxAllowedShiftLeft = -Infinity;
+
+            gameState.dragState.movingGroup.forEach(item => {
+                let cx = item.currentX !== undefined ? item.currentX : item.initialX;
+                let limitLeft = item.dir === 1 ? -120 - cx : cx - 120;
+                let limitRight = item.dir === 1 ? 120 - cx : cx + 120;
+
+                if (limitLeft > maxAllowedShiftLeft) maxAllowedShiftLeft = limitLeft;
+                if (limitRight < maxAllowedShiftRight) maxAllowedShiftRight = limitRight;
+            });
+
+            if (snapDelta < maxAllowedShiftLeft) snapDelta = maxAllowedShiftLeft;
+            if (snapDelta > maxAllowedShiftRight) snapDelta = maxAllowedShiftRight;
+
+            gameState.dragState.movingGroup.forEach(item => {
+                let cx = item.currentX !== undefined ? item.currentX : item.initialX;
+
+                let finalX = cx + (snapDelta * item.dir);
+                item.block.x = finalX;
+
+                item.block.el.style.transition = 'transform 0.2s ease-out';
+                item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${finalX}px)`;
+
+                if (item.block.pinWrapper && item.block.pin) {
+                    item.block.pinWrapper.style.transition = 'transform 0.2s ease-out';
+                    item.block.pinWrapper.style.transform = `translateX(${-finalX}px)`;
+                    updatePinState(item.block.pin, finalX);
+                }
+            });
+        }
+
+        gameState.dragState.activePlate = null;
+        gameState.dragState.movingGroup = [];
+    }
+
+    document.addEventListener('mousedown', handleDragStart);
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+
+    document.addEventListener('touchstart', handleDragStart, { passive: false });
+    document.addEventListener('touchmove', handleDragMove, { passive: false });
+    document.addEventListener('touchend', handleDragEnd);
+    document.addEventListener('touchcancel', handleDragEnd);
+
+</script>
+</body>
+</html>

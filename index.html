@@ -6,6 +6,7 @@
     <title>Gothic Lockpicker</title>
     <link rel="icon" href="icon.png">
     <style>
+
         :root {
             --block-scale: 1;
         }
@@ -40,12 +41,47 @@
             width: 250px;
         }
 
-        @media screen and (max-width: 600px) {
+        @media screen and (max-width: 768px) {
+            body {
+                flex-direction: column;
+                justify-content: center;
+                padding-top: 0;
+            }
+
+            .scene {
+                order: 1;
+                margin-bottom: 40px;
+                margin-top: 0;
+            }
+
             .controls {
-                padding: 10px;
-                top: 10px;
-                left: 10px;
+                order: 2;
+                position: relative;
+                top: auto;
+                left: auto;
+                width: 85%;
+                max-width: 350px;
+                padding: 15px;
                 gap: 10px;
+                margin-bottom: -3em;
+                z-index: 10;
+            }
+
+            .solution-list {
+                padding: 0 !important;
+                height: 32px;
+                min-height: 32px;
+                max-height: 32px !important;
+                overflow-y: hidden !important;
+                scroll-behavior: smooth;
+            }
+
+            .solution-list div {
+                height: 32px;
+                line-height: 32px;
+                border-bottom: none !important;
+                text-align: center;
+                padding: 0 5px !important;
             }
         }
 
@@ -114,34 +150,57 @@
             background: #ffa600;
         }
 
-        .playback-container {
-            display: none; /* hidden until solved */
-            flex-direction: row;
-            justify-content: center;
-            gap: 8px;
+        /* --- NEW PLAYBACK LAYOUT --- */
+        .play-status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 30px;
         }
-        .playback-container button {
+
+        .play-status-row button {
             padding: 6px 15px;
             font-size: 14px;
-            flex: 1;
             background: #66d437;
             color: #111;
+            flex-shrink: 0;
         }
-        .playback-container button:hover:not(:disabled) {
+
+        .play-status-row button:hover:not(:disabled) {
+            background: #7aef48;
+        }
+
+        .step-controls-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .step-controls-row button {
+            padding: 6px 12px;
+            font-size: 14px;
+            background: #66d437;
+            color: #111;
+            flex-shrink: 0;
+        }
+
+        .step-controls-row button:hover:not(:disabled) {
             background: #7aef48;
         }
 
         .status-message {
             font-size: 13px;
             font-weight: bold;
-            min-height: 15px;
-            margin-top: -5px;
         }
+
         .status-error { color: #ff4444; }
         .status-success { color: #66d437; }
         .status-info { color: #37a1d4; }
 
         .solution-list {
+            flex-grow: 1;
             background: #222;
             border: 1px solid #444;
             border-radius: 4px;
@@ -158,13 +217,13 @@
             border-bottom: 1px solid #333;
             transition: background 0.2s, color 0.2s;
             border-radius: 3px;
+            box-sizing: border-box;
         }
 
         .solution-list div:last-child {
             border-bottom: none;
         }
 
-        /* Highlight for the active step */
         .solution-list div.active-step {
             background: rgba(102, 212, 55, 0.2);
             color: #7aef48;
@@ -397,19 +456,21 @@
     <button id="resetBtn">Reset Lock</button>
     <button id="solve">Solve Lock</button>
 
-    <div id="playbackContainer" class="playback-container">
-        <button id="prevBtn" title="Step Backward">⏮</button>
-        <button id="playBtn" title="Play Full Solution">▶</button>
-        <button id="nextBtn" title="Step Forward">⏭</button>
-    </div>
-
     <label class="toggle-label" id="squashLabel" style="display: none;">
         <input type="checkbox" id="squashMovesCheck" checked>
         Squash
     </label>
 
-    <div id="statusMsg" class="status-message"></div>
-    <div id="solutionList" class="solution-list"></div>
+    <div class="play-status-row">
+        <div id="statusMsg" class="status-message"></div>
+        <button id="playBtn" title="Play Full Solution" style="display: none;">▶ Play</button>
+    </div>
+
+    <div class="step-controls-row" id="stepControlsRow" style="display: none;">
+        <button id="prevBtn" title="Step Backward">⏮</button>
+        <div id="solutionList" class="solution-list"></div>
+        <button id="nextBtn" title="Step Forward">⏭</button>
+    </div>
 </div>
 
 <div class="scene">
@@ -424,10 +485,10 @@
     const resetBtn = document.getElementById('resetBtn');
     const solveBtn = document.getElementById('solve');
 
-    const playbackContainer = document.getElementById('playbackContainer');
     const prevBtn = document.getElementById('prevBtn');
     const playBtn = document.getElementById('playBtn');
     const nextBtn = document.getElementById('nextBtn');
+    const stepControlsRow = document.getElementById('stepControlsRow');
     const squashLabel = document.getElementById('squashLabel');
     const squashMovesCheck = document.getElementById('squashMovesCheck');
     const statusMsg = document.getElementById('statusMsg');
@@ -469,7 +530,8 @@
         currentStepIndex = 0;
         isPlaying = false;
 
-        playbackContainer.style.display = 'none';
+        playBtn.style.display = 'none';
+        stepControlsRow.style.display = 'none';
         squashLabel.style.display = 'none';
         solutionList.style.display = 'none';
         solutionList.innerHTML = '';
@@ -913,13 +975,14 @@
             } else if (!result || !result.moves) {
                 setStatus("No solution found from this state.", "error");
             } else if (result.moves.length === 0) {
-                setStatus("Lock is already completely solved!", "success");
+                setStatus("Lock is already solved!", "success");
             } else {
                 currentSolution = result.moves;
                 currentStepIndex = 0;
                 setStatus(`Solution found: ${result.moves.length} moves!`, "success");
 
-                playbackContainer.style.display = 'flex';
+                playBtn.style.display = 'block';
+                stepControlsRow.style.display = 'flex';
                 squashLabel.style.display = 'flex';
                 solutionList.style.display = 'block';
 
