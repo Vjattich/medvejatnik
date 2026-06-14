@@ -385,7 +385,7 @@
 
 <div class="controls">
     <label>
-        Block Size (Scale):
+        Scale:
         <input type="range" id="sizeInput" min="0.3" max="2" step="0.1" value="1">
     </label>
     <label>
@@ -404,7 +404,7 @@
 
     <label class="toggle-label" id="squashLabel" style="display: none;">
         <input type="checkbox" id="squashMovesCheck" checked>
-        Squash moves (Less rows)
+        Squash
     </label>
 
     <div id="statusMsg" class="status-message"></div>
@@ -496,7 +496,7 @@
         const isGoal = (values) => values.every(v => v === 0);
 
         const applyMove = (values, plate, direction, effects) => {
-          const delta = direction === "left" ? 1 : -1;
+          const delta = direction === "right" ? 1 : -1;
           const next = [...values];
 
           const add = (index, amount) => { next[index - 1] += amount; };
@@ -796,7 +796,7 @@
 
     function applySingleMove(move, reverse = false) {
         const primaryBlock = gameState.blocks[move.plate - 1];
-        let stepShift = (move.direction === "left") ? HOLE_SPACING : -HOLE_SPACING;
+        let stepShift = (move.direction === "left") ? -HOLE_SPACING : HOLE_SPACING;
 
         if (reverse) {
             stepShift *= -1;
