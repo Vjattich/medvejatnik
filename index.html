@@ -1162,23 +1162,10 @@
                             curBlock.group = { [curBlock.id]: 1 };
                             gameState.dragState.activePlate.classList.remove('linked-highlight-reverse');
                         }
-                    } else {
-
-                        let oldGroup = curBlock.group;
-
-                        Object.keys(oldGroup).forEach(k => {
-                            let kid = parseInt(k);
-                            masterBlock.group[kid] = oldGroup[kid];
-
-                            let childBlock = gameState.blocks.find(x => x.id === kid);
-                            if (childBlock) {
-
-                                if (kid !== masterBlock.id) {
-                                    if (masterBlock.group[kid] === 1) childBlock.el.classList.add('linked-highlight');
-                                    else childBlock.el.classList.add('linked-highlight-reverse');
-                                }
-                            }
-                        });
+                    }
+                    else {
+                        masterBlock.group[curBlock.id] = 1;
+                        gameState.dragState.activePlate.classList.add('linked-highlight');
                     }
 
                     if (navigator.vibrate) navigator.vibrate(50);
