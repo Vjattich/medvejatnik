@@ -24,11 +24,6 @@ The repository name, Medvejatnik (Медвежатник), comes from the Russia
 4. Press **Solve Lock** to generate a solution.
 5. Follow the solution step by step using the controls.
 
-## Tech Stack
-
-- JavaScript / TypeScript
-- HTML / CSS
-
 ## License
 
 Copyright (c) 2026 Vj Vjattich
