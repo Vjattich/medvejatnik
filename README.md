@@ -1,6 +1,6 @@
 # Medvejatnik
 
-A lockpicking puzzle solver inspired by Gothic Remake. My goal was to create the best possible user experience to the solver and i thinks the best UX will be just recreate the lock
+A lockpicking puzzle solver inspired by Gothic Remake. My goal was to create the best possible user experience to the solver and i thinks the best UX will be just recreate the lock itself.
 
 The repository name, Medvejatnik (Медвежатник), comes from the Russian word for a safecracker or lockpicker.
 
