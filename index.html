@@ -1009,7 +1009,7 @@
 
         for (let i = 0; i < count; i++) {
             const id = i + 1;
-            const zPos = (i - centerOffset) * spacing;
+            const zPos = (centerOffset - i) * spacing;
             let prevX = oldBlocks.has(id) ? oldBlocks.get(id).x : 0;
 
             const plate = document.createElement('div');
@@ -1050,7 +1050,8 @@
             `;
 
             plate.style.transform = `translateZ(${zPos}px) translateX(${prevX}px)`;
-            lock.appendChild(plate);
+
+            lock.prepend(plate);
 
             gameState.blocks.push({
                 id: id,
@@ -1178,7 +1179,7 @@
         const clickedPlate = e.target.closest('.plate');
         if (!clickedPlate) return;
 
-        //clear if moved
+
         if (currentSolution) clearSolutionUI();
 
         gameState.dragState.activePlate = clickedPlate;
