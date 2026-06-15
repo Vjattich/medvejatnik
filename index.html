@@ -894,6 +894,7 @@
                 if (b.pinWrapper && b.pin) {
                     b.pinWrapper.style.transition = 'transform 0.2s ease-out';
                     b.pinWrapper.style.transform = `translateX(${-newX}px)`;
+                    //todo apply pin animation here?
                     updatePinState(b.pin, newX);
                 }
             }
