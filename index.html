@@ -52,7 +52,7 @@
                 left: 0 !important;
                 bottom: 80px;
                 order: 1;
-                margin-bottom: 5%;
+                margin-bottom: 0;
                 margin-top: 0;
             }
 
@@ -198,13 +198,55 @@
             width: 80%;
         }
 
-        #solve {
+        #resetBtn {
+            flex: 0;
+            height: 44px;
+            padding: 0;
+            font-size: 22px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #333;
+        }
+
+        #resetBtn:hover {
+            background: #444;
+        }
+
+        #solveBtn {
+            flex: 1;
+            height: 44px;
+            font-weight: bold;
             background: orange;
+            border-color: #357abd;
             color: #111;
         }
 
-        #solve:hover:not(:disabled) {
+        #solveBtn:hover:not(:disabled) {
             background: #ffa600;
+        }
+
+        .action-row {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            width: 100%;
+            align-items: stretch;
+        }
+
+        .action-row #resetBtn {
+            flex: 0 0 44px;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+        }
+
+        .action-row #solveBtn {
+            flex: 1;
+            margin: 0;
         }
 
         .play-status-row {
@@ -531,13 +573,15 @@
         Amount of Blocks:
         <div class="number-control">
             <button id="btnDecreaseBlocks" class="num-btn">-</button>
-            <input type="number" id="countInput" min="1" max="20" value="5" readonly>
+            <input type="number" id="countInput" min="3" max="8" value="6" readonly>
             <button id="btnIncreaseBlocks" class="num-btn">+</button>
         </div>
     </label>
 
-    <button id="resetBtn">Reset Lock</button>
-    <button id="solve">Solve Lock</button>
+    <div class="action-row">
+        <button id="resetBtn" title="Reset Lock" aria-label="Reset">&#x21BB;</button>
+        <button id="solveBtn">Solve Lock</button>
+    </div>
 
     <label class="toggle-label" id="squashLabel" style="display: none;">
         <input type="checkbox" id="squashMovesCheck" checked>
@@ -566,7 +610,7 @@
     const sizeInput = document.getElementById('sizeInput');
     const countInput = document.getElementById('countInput');
     const resetBtn = document.getElementById('resetBtn');
-    const solveBtn = document.getElementById('solve');
+    const solveBtn = document.getElementById('solveBtn');
 
     const btnDecrease = document.getElementById('btnDecreaseBlocks');
     const btnIncrease = document.getElementById('btnIncreaseBlocks');
@@ -1276,7 +1320,7 @@
         renderBlocks(parseInt(countInput.value));
     });
 
-    renderBlocks(5);
+    renderBlocks(countInput.value);
 
     function getClientX(e) {
         return e.touches && 0 < e.touches.length ? e.touches[0].clientX : e.clientX;
