@@ -60,6 +60,11 @@
         }
 
         @media screen and (max-width: 768px) {
+
+            #squashLabel {
+                display: none !important;
+            }
+
             body {
                 flex-direction: column;
                 justify-content: flex-start; /* Anchors content to top */
@@ -598,6 +603,10 @@
         },
         isMobile: 768 >= window.innerWidth
     };
+
+    if (gameState.isMobile) {
+        squashMovesCheck.checked = false;
+    }
 
     function setStatus(text, type = 'info') {
         statusMsg.textContent = text;
