@@ -4,6 +4,10 @@ A lockpicking puzzle solver inspired by Gothic Remake. My goal was to create the
 
 The repository name, Medvejatnik (Медвежатник), comes from the Russian word for a safecracker or lockpicker.
 
+## Topics
+
+gothic-remake, gothic, lockpicking, lockpick, puzzle-game, puzzle-solver, safecracker, medvejatnik
+
 ## Features
 
 - Move blocks around like in an actual game

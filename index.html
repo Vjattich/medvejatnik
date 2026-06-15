@@ -38,7 +38,7 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
-            width: 250px;
+            width: 300px;
         }
 
         @media screen and (max-width: 768px) {
@@ -49,6 +49,8 @@
             }
 
             .scene {
+                left: 0 !important;
+                bottom: 80px;
                 order: 1;
                 margin-bottom: 40px;
                 margin-top: 0;
@@ -63,7 +65,7 @@
                 max-width: 350px;
                 padding: 15px;
                 gap: 10px;
-                margin-bottom: -3em;
+                margin-bottom: 0;
                 z-index: 10;
             }
 
@@ -87,7 +89,9 @@
 
         .controls label:not(.toggle-label) {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
             font-size: 14px;
             gap: 8px;
             color: #ccc;
@@ -118,6 +122,46 @@
             border: 1px solid #444;
             padding: 5px;
             border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .number-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            width: 100%;
+        }
+
+        .num-btn {
+            background: #333;
+            color: #fff;
+            border: 1px solid #444 !important;
+            border-radius: 4px;
+            width: 32px;
+            height: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 !important;
+        }
+
+        .num-btn:hover { background: #444; }
+        .num-btn:active { background: #222; }
+
+        .number-control input[type="number"] {
+            -moz-appearance: textfield;
+            text-align: center;
+            width: 100%;
+        }
+
+        .number-control input[type="number"]::-webkit-inner-spin-button,
+        .number-control input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
 
         .controls button {
@@ -142,15 +186,27 @@
             opacity: 0.7;
         }
 
+        .number-control button {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            font-weight: bold;
+            transition: background 0.2s;
+            width: 80%;
+        }
+
         #solve {
             background: orange;
             color: #111;
         }
+
         #solve:hover:not(:disabled) {
             background: #ffa600;
         }
 
-        /* --- NEW PLAYBACK LAYOUT --- */
         .play-status-row {
             display: flex;
             justify-content: space-between;
@@ -179,7 +235,7 @@
         }
 
         .step-controls-row button {
-            padding: 6px 12px;
+            padding: 12px 12px;
             font-size: 14px;
             background: #66d437;
             color: #111;
@@ -231,6 +287,8 @@
         }
 
         .scene {
+            position: relative;
+            left: 150px;
             perspective: 1200px;
         }
 
@@ -335,10 +393,25 @@
             transform-style: preserve-3d;
         }
 
-        .tube-tr { top: 30px; right: 30px; }
-        .tube-br { bottom: 30px; right: 30px; }
-        .tube-bl { bottom: 30px; left: 30px; }
-        .tube-tl { top: 31px; left: 30px; }
+        .tube-tr {
+            top: 30px;
+            right: 30px;
+        }
+
+        .tube-br {
+            bottom: 30px;
+            right: 30px;
+        }
+
+        .tube-bl {
+            bottom: 30px;
+            left: 30px;
+        }
+
+        .tube-tl {
+            top: 31px;
+            left: 30px;
+        }
 
         .tube-panel {
             position: absolute;
@@ -362,7 +435,9 @@
             z-index: 1;
         }
 
-        .pin-hole { z-index: 5; }
+        .pin-hole {
+            z-index: 5;
+        }
 
         .pin-wrapper {
             position: absolute;
@@ -388,7 +463,9 @@
             opacity: 0;
         }
 
-        .pin.pin-visible { opacity: 1; }
+        .pin.pin-visible {
+            opacity: 1;
+        }
 
         .pin-cap {
             position: absolute;
@@ -423,7 +500,9 @@
             backface-visibility: hidden;
         }
 
-        .pin.pin-body-visible .pin-body { opacity: 1; }
+        .pin.pin-body-visible .pin-body {
+            opacity: 1;
+        }
 
         .plate.selected .front-face {
             border-color: #66d437;
@@ -450,7 +529,11 @@
     </label>
     <label>
         Amount of Blocks:
-        <input type="number" id="countInput" min="1" max="20" value="5">
+        <div class="number-control">
+            <button id="btnDecreaseBlocks" class="num-btn">-</button>
+            <input type="number" id="countInput" min="1" max="20" value="5" readonly>
+            <button id="btnIncreaseBlocks" class="num-btn">+</button>
+        </div>
     </label>
 
     <button id="resetBtn">Reset Lock</button>
@@ -485,6 +568,9 @@
     const resetBtn = document.getElementById('resetBtn');
     const solveBtn = document.getElementById('solve');
 
+    const btnDecrease = document.getElementById('btnDecreaseBlocks');
+    const btnIncrease = document.getElementById('btnIncreaseBlocks');
+
     const prevBtn = document.getElementById('prevBtn');
     const playBtn = document.getElementById('playBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -517,7 +603,7 @@
             isDragging: false,
             longPressTimer: null
         },
-        isMobile: window.innerWidth <= 768
+        isMobile: 768 >= window.innerWidth
     };
 
     function setStatus(text, type = 'info') {
@@ -559,7 +645,7 @@
         const isGoal = (values) => values.every(v => v === 0);
 
         const applyMove = (values, plate, direction, effects) => {
-          const delta = direction === "right" ? 1 : -1;
+          const delta = "right" === direction ? 1 : -1;
           const next = [...values];
 
           const add = (index, amount) => { next[index - 1] += amount; };
@@ -569,8 +655,8 @@
           for (let target = 1; target <= values.length; target++) {
             if (target === plate) continue;
             const relation = Number(row[target - 1] || 0);
-            if (relation === 0) continue;
-            add(target, relation === 1 ? delta : -delta);
+            if (0 === relation) continue;
+            add(target, 1 === relation ? delta : -delta);
           }
 
           if (next.some(v => v < MIN || v > MAX)) return null;
@@ -581,7 +667,7 @@
         const searchKeyOf = (values, lastMoveKey) => keyOf(values) + "|" + (lastMoveKey || "start");
 
         const compareCosts = (a, b, mode) => {
-          if (mode === "shortest") {
+          if ("shortest" === mode) {
             if (a.moves !== b.moves) return a.moves - b.moves;
             return a.groups - b.groups;
           }
@@ -596,9 +682,9 @@
           const swap = (a, b) => { [items[a], items[b]] = [items[b], items[a]]; };
 
           const bubbleUp = (index) => {
-            while (index > 0) {
+            while (0 < index) {
               const parent = Math.floor((index - 1) / 2);
-              if (compare(items[index], items[parent]) >= 0) break;
+              if (0 <= compare(items[index], items[parent])) break;
               swap(index, parent);
               index = parent;
             }
@@ -610,8 +696,8 @@
               const right = index * 2 + 2;
               let smallest = index;
 
-              if (left < items.length && compare(items[left], items[smallest]) < 0) smallest = left;
-              if (right < items.length && compare(items[right], items[smallest]) < 0) smallest = right;
+              if (left < items.length && 0 > compare(items[left], items[smallest])) smallest = left;
+              if (right < items.length && 0 > compare(items[right], items[smallest])) smallest = right;
               if (smallest === index) break;
 
               swap(index, smallest);
@@ -622,10 +708,10 @@
           return {
             push: (value) => { items.push(value); bubbleUp(items.length - 1); },
             pop: () => {
-              if (items.length === 0) return undefined;
+              if (0 === items.length) return undefined;
               const first = items[0];
               const last = items.pop();
-              if (items.length > 0) { items[0] = last; bubbleDown(0); }
+              if (0 < items.length) { items[0] = last; bubbleDown(0); }
               return first;
             },
             get length() { return items.length; }
@@ -637,7 +723,7 @@
           const states = [];
           let index = goalIndex;
 
-          while (index !== -1) {
+          while (-1 !== index) {
             const node = nodes[index];
             states.push(node.values);
             if (node.move) {
@@ -661,13 +747,13 @@
           const best = new Map([[searchKeyOf(start, ""), { moves: 0, groups: 0 }]]);
           const queue = createPriorityQueue((a, b) => {
             const result = compareCosts(nodes[a], nodes[b], mode);
-            return result !== 0 ? result : a - b;
+            return 0 !== result ? result : a - b;
           });
 
           queue.push(0);
           const startTime = Date.now();
 
-          while (queue.length > 0) {
+          while (0 < queue.length) {
             if (Date.now() - startTime > timeoutMs) return { timeout: true };
 
             const currentIndex = queue.pop();
@@ -693,7 +779,7 @@
                 const nextKey = searchKeyOf(nextValues, nextMoveKey);
                 const previousBest = best.get(nextKey);
 
-                if (previousBest && compareCosts(nextCost, previousBest, mode) >= 0) continue;
+                if (previousBest && 0 <= compareCosts(nextCost, previousBest, mode)) continue;
 
                 const nextIndex = nodes.length;
                 best.set(nextKey, nextCost);
@@ -782,14 +868,14 @@
         };
 
         const solve = (n, start, effects, mode, timeoutMs) => {
-          if (mode === "shortest") return solveWithPriority(n, start, effects, "shortest", timeoutMs);
-          if (mode === "shortest-fast") return solveFastShortestMoves(n, start, effects, timeoutMs);
-          if (mode === "fewer-switches-fast") return solveFastFewerPlateSwitches(n, start, effects, timeoutMs);
+          if ("shortest" === mode) return solveWithPriority(n, start, effects, "shortest", timeoutMs);
+          if ("shortest-fast" === mode) return solveFastShortestMoves(n, start, effects, timeoutMs);
+          if ("fewer-switches-fast" === mode) return solveFastFewerPlateSwitches(n, start, effects, timeoutMs);
           return solveWithPriority(n, start, effects, "fewer-switches", timeoutMs);
         };
         `;
 
-        const blob = new Blob([workerSource], { type: "text/javascript" });
+        const blob = new Blob([workerSource], {type: "text/javascript"});
         const workerUrl = URL.createObjectURL(blob);
         const worker = new Worker(workerUrl);
 
@@ -812,11 +898,11 @@
             effects.push(row);
         }
 
-        return { n, start, effects };
+        return {n, start, effects};
     }
 
     function solveInWorker() {
-        if (!window.Worker) return Promise.reject(new Error("Web Workers are not supported."));
+        if (undefined === window.Worker) return Promise.reject(new Error("Web Workers are not supported."));
 
         const setup = compactSetup();
         const payload = {
@@ -833,7 +919,7 @@
             const hardTimeout = setTimeout(() => {
                 worker.terminate();
                 worker.releaseUrl();
-                resolve({ timeout: true });
+                resolve({timeout: true});
             }, SOLVE_TIMEOUT_MS + 1000);
 
             worker.onmessage = (event) => {
@@ -859,9 +945,9 @@
 
     function applySingleMove(move, reverse = false) {
         const primaryBlock = gameState.blocks[move.plate - 1];
-        let stepShift = (move.direction === "left") ? -HOLE_SPACING : HOLE_SPACING;
+        let stepShift = ("left" === move.direction) ? -HOLE_SPACING : HOLE_SPACING;
 
-        if (reverse) {
+        if (true === reverse) {
             stepShift *= -1;
         }
 
@@ -893,9 +979,9 @@
     }
 
     function updatePlaybackUI() {
-        if (!currentSolution) return;
+        if (null === currentSolution) return;
 
-        prevBtn.disabled = (currentStepIndex === 0) || isPlaying;
+        prevBtn.disabled = (0 === currentStepIndex) || isPlaying;
         nextBtn.disabled = (currentStepIndex === currentSolution.length) || isPlaying;
         playBtn.disabled = (currentStepIndex === currentSolution.length) || isPlaying;
         solveBtn.disabled = isPlaying;
@@ -904,21 +990,21 @@
 
         if (currentStepIndex < currentSolution.length) {
             let activeDomIndex = moveMap[currentStepIndex];
-            if (activeDomIndex !== undefined && solutionList.children[activeDomIndex]) {
+            if (undefined !== activeDomIndex && solutionList.children[activeDomIndex]) {
                 let activeEl = solutionList.children[activeDomIndex];
                 activeEl.classList.add('active-step');
-                activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
             }
-        } else if (currentSolution.length > 0) {
+        } else if (0 < currentSolution.length) {
             let lastDomIndex = moveMap[currentSolution.length - 1];
-            if (lastDomIndex !== undefined && solutionList.children[lastDomIndex]) {
+            if (undefined !== lastDomIndex && solutionList.children[lastDomIndex]) {
                 solutionList.children[lastDomIndex].classList.add('active-step');
             }
         }
     }
 
     function renderSolutionList() {
-        if (!currentSolution) return;
+        if (null === currentSolution) return;
         solutionList.innerHTML = '';
         moveMap = [];
 
@@ -932,23 +1018,23 @@
                     last.count++;
                     moveMap[i] = domIndex - 1;
                 } else {
-                    movesToRender.push({ ...m, count: 1 });
+                    movesToRender.push({...m, count: 1});
                     moveMap[i] = domIndex;
                     domIndex++;
                 }
             });
         } else {
             currentSolution.forEach((m, i) => {
-                movesToRender.push({ ...m, count: 1 });
+                movesToRender.push({...m, count: 1});
                 moveMap[i] = i;
             });
         }
 
         movesToRender.forEach((m, index) => {
             const step = document.createElement('div');
-            const icon = m.direction === 'left' ? '←' : '→';
+            const icon = 'left' === m.direction ? '←' : '→';
             let text = `${index + 1}. Block ${m.plate} ${icon} ${m.direction.toUpperCase()}`;
-            if (m.count > 1) {
+            if (1 < m.count) {
                 text += ` (x${m.count})`;
             }
             step.textContent = text;
@@ -974,7 +1060,7 @@
                 setStatus("Solver timed out! Try adjusting parameters.", "error");
             } else if (!result || !result.moves) {
                 setStatus("No solution found from this state.", "error");
-            } else if (result.moves.length === 0) {
+            } else if (0 === result.moves.length) {
                 setStatus("Lock is already solved!", "success");
             } else {
                 currentSolution = result.moves;
@@ -998,27 +1084,27 @@
 
     //todo arrows
     nextBtn.addEventListener('click', () => {
-        if (!currentSolution || isPlaying || currentStepIndex >= currentSolution.length) return;
+        if (null === currentSolution || true === isPlaying || currentStepIndex >= currentSolution.length) return;
         applySingleMove(currentSolution[currentStepIndex], false);
         currentStepIndex++;
         updatePlaybackUI();
     });
 
     prevBtn.addEventListener('click', () => {
-        if (!currentSolution || isPlaying || currentStepIndex <= 0) return;
+        if (null === currentSolution || true === isPlaying || 0 >= currentStepIndex) return;
         applySingleMove(currentSolution[currentStepIndex - 1], true);
         currentStepIndex--;
         updatePlaybackUI();
     });
 
     playBtn.addEventListener('click', async () => {
-        if (!currentSolution || currentStepIndex >= currentSolution.length || isPlaying) return;
+        if (null === currentSolution || currentStepIndex >= currentSolution.length || true === isPlaying) return;
 
         isPlaying = true;
         setStatus("Playing sequence...", "info");
         updatePlaybackUI();
 
-        while (currentStepIndex < currentSolution.length && isPlaying) {
+        while (currentStepIndex < currentSolution.length && true === isPlaying) {
             applySingleMove(currentSolution[currentStepIndex], false);
             currentStepIndex++;
             updatePlaybackUI();
@@ -1031,23 +1117,24 @@
     });
 
     function setInitialScale() {
-        const initialScale = gameState.isMobile ? 0.65 : 1;
+        const initialScale = gameState.isMobile ? 0.65 : 1.1;
         document.documentElement.style.setProperty('--block-scale', initialScale);
         sizeInput.value = initialScale;
     }
+
     setInitialScale();
 
     function updatePinState(pin, currentX) {
         let holeIndex = Math.round(currentX / HOLE_SPACING);
         let distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING));
 
-        let isOverAnyHole = distanceToHole < 10;
-        let isCorrectHole = (holeIndex === 0);
+        let isOverAnyHole = 10 > distanceToHole;
+        let isCorrectHole = (0 === holeIndex);
 
         pin.classList.toggle('pin-visible', isOverAnyHole);
         pin.classList.toggle('pin-body-visible', isOverAnyHole);
 
-        if (isOverAnyHole && isCorrectHole) {
+        if (true === isOverAnyHole && true === isCorrectHole) {
             pin.style.transform = `translateZ(${pinRaised}px)`;
         } else {
             pin.style.transform = `translateZ(${pinUnder}px)`;
@@ -1082,7 +1169,7 @@
 
             let holesHtml = '';
             for (let h = 0; h < 7; h++) {
-                if (h === 3) {
+                if (3 === h) {
                     holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${pinRaised}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
                 } else {
                     holesHtml += `<div class="hole ` + h + `"></div>`;
@@ -1124,7 +1211,7 @@
                 el: plate,
                 pinWrapper: plate.querySelector('.pin-wrapper'),
                 pin: plate.querySelector('.pin'),
-                group: { [id]: 1 }
+                group: {[id]: 1}
             });
 
             if (plate.querySelector('.pin')) updatePinState(plate.querySelector('.pin'), prevX);
@@ -1153,7 +1240,27 @@
 
     countInput.addEventListener('input', (e) => {
         let count = parseInt(e.target.value);
-        if (count > 0 && count <= 50) renderBlocks(count);
+        if (0 < count && 50 >= count) renderBlocks(count);
+    });
+
+    btnDecrease.addEventListener('click', () => {
+        let currentValue = parseInt(countInput.value, 10);
+        let min = parseInt(countInput.min, 10) || 1;
+
+        if (currentValue > min) {
+            countInput.value = currentValue - 1;
+            countInput.dispatchEvent(new Event('input'));
+        }
+    });
+
+    btnIncrease.addEventListener('click', () => {
+        let currentValue = parseInt(countInput.value, 10);
+        let max = parseInt(countInput.max, 10) || 20;
+
+        if (currentValue < max) {
+            countInput.value = currentValue + 1;
+            countInput.dispatchEvent(new Event('input'));
+        }
     });
 
     resetBtn.addEventListener('click', () => {
@@ -1172,7 +1279,7 @@
     renderBlocks(5);
 
     function getClientX(e) {
-        return e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+        return e.touches && 0 < e.touches.length ? e.touches[0].clientX : e.clientX;
     }
 
     function longPress(clickedId) {
@@ -1183,7 +1290,7 @@
                 let curBlock = gameState.blocks.find(b => b.id === clickedId);
                 if (!curBlock) return;
 
-                if (gameState.activeLinkerId === null) {
+                if (null === gameState.activeLinkerId) {
 
                     gameState.activeLinkerId = curBlock.id;
                     gameState.dragState.activePlate.classList.add('selected');
@@ -1193,7 +1300,7 @@
                         if (id !== curBlock.id) {
                             let b = gameState.blocks.find(x => x.id === id);
                             if (b) {
-                                if (curBlock.group[id] === 1) b.el.classList.add('linked-highlight');
+                                if (1 === curBlock.group[id]) b.el.classList.add('linked-highlight');
                                 else b.el.classList.add('linked-highlight-reverse');
                             }
                         }
@@ -1217,18 +1324,17 @@
                     let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
 
                     if (masterBlock.group[curBlock.id]) {
-                        if (masterBlock.group[curBlock.id] === 1) {
+                        if (1 === masterBlock.group[curBlock.id]) {
                             masterBlock.group[curBlock.id] = -1;
                             gameState.dragState.activePlate.classList.remove('linked-highlight');
                             gameState.dragState.activePlate.classList.add('linked-highlight-reverse');
 
-                        } else if (masterBlock.group[curBlock.id] === -1) {
+                        } else if (-1 === masterBlock.group[curBlock.id]) {
                             delete masterBlock.group[curBlock.id];
-                            curBlock.group = { [curBlock.id]: 1 };
+                            curBlock.group = {[curBlock.id]: 1};
                             gameState.dragState.activePlate.classList.remove('linked-highlight-reverse');
                         }
-                    }
-                    else {
+                    } else {
                         masterBlock.group[curBlock.id] = 1;
                         gameState.dragState.activePlate.classList.add('linked-highlight');
                     }
@@ -1242,7 +1348,6 @@
     function handleDragStart(e) {
         const clickedPlate = e.target.closest('.plate');
         if (!clickedPlate) return;
-
 
         if (currentSolution) clearSolutionUI();
 
@@ -1279,7 +1384,7 @@
     }
 
     function handleDragMove(e) {
-        if (!gameState.dragState.activePlate || gameState.dragState.movingGroup.length === 0) return;
+        if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length) return;
 
         let clientX = getClientX(e);
 
@@ -1295,8 +1400,8 @@
         let maxDeltaX = Infinity;
 
         gameState.dragState.movingGroup.forEach(item => {
-            let limitLeft = item.dir === 1 ? -120 - item.initialX : item.initialX - 120;
-            let limitRight = item.dir === 1 ? 120 - item.initialX : item.initialX + 120;
+            let limitLeft = 1 === item.dir ? -120 - item.initialX : item.initialX - 120;
+            let limitRight = 1 === item.dir ? 120 - item.initialX : item.initialX + 120;
 
             if (limitLeft > minDeltaX) minDeltaX = limitLeft;
             if (limitRight < maxDeltaX) maxDeltaX = limitRight;
@@ -1322,11 +1427,11 @@
     function handleDragEnd() {
         clearTimeout(gameState.dragState.longPressTimer);
 
-        if (gameState.dragState.activePlate && gameState.dragState.movingGroup.length > 0 && gameState.dragState.isDragging) {
+        if (gameState.dragState.activePlate && 0 < gameState.dragState.movingGroup.length && true === gameState.dragState.isDragging) {
             const clickedId = parseInt(gameState.dragState.activePlate.dataset.id);
             let primary = gameState.dragState.movingGroup.find(item => item.block.id === clickedId) || gameState.dragState.movingGroup[0];
 
-            let currentX = primary.currentX !== undefined ? primary.currentX : primary.initialX;
+            let currentX = undefined !== primary.currentX ? primary.currentX : primary.initialX;
             let holeIndex = Math.round(currentX / HOLE_SPACING);
             let snappedX = holeIndex * HOLE_SPACING;
 
@@ -1336,9 +1441,9 @@
             let maxAllowedShiftLeft = -Infinity;
 
             gameState.dragState.movingGroup.forEach(item => {
-                let cx = item.currentX !== undefined ? item.currentX : item.initialX;
-                let limitLeft = item.dir === 1 ? -120 - cx : cx - 120;
-                let limitRight = item.dir === 1 ? 120 - cx : cx + 120;
+                let cx = undefined !== item.currentX ? item.currentX : item.initialX;
+                let limitLeft = 1 === item.dir ? -120 - cx : cx - 120;
+                let limitRight = 1 === item.dir ? 120 - cx : cx + 120;
 
                 if (limitLeft > maxAllowedShiftLeft) maxAllowedShiftLeft = limitLeft;
                 if (limitRight < maxAllowedShiftRight) maxAllowedShiftRight = limitRight;
@@ -1348,7 +1453,7 @@
             if (snapDelta > maxAllowedShiftRight) snapDelta = maxAllowedShiftRight;
 
             gameState.dragState.movingGroup.forEach(item => {
-                let cx = item.currentX !== undefined ? item.currentX : item.initialX;
+                let cx = undefined !== item.currentX ? item.currentX : item.initialX;
 
                 let finalX = cx + (snapDelta * item.dir);
                 item.block.x = finalX;
@@ -1372,8 +1477,8 @@
     document.addEventListener('mousemove', handleDragMove);
     document.addEventListener('mouseup', handleDragEnd);
 
-    document.addEventListener('touchstart', handleDragStart, { passive: false });
-    document.addEventListener('touchmove', handleDragMove, { passive: false });
+    document.addEventListener('touchstart', handleDragStart, {passive: false});
+    document.addEventListener('touchmove', handleDragMove, {passive: false});
     document.addEventListener('touchend', handleDragEnd);
     document.addEventListener('touchcancel', handleDragEnd);
 
