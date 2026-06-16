@@ -543,9 +543,14 @@
 
         }
 
-        .plate.glow:not(.selected, .linked-highlight, .linked-highlight-reverse):hover .front-face {
+        .plate.glow:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow):hover .front-face {
             border-color: rgb(255 255 255 / 0.9);
             transition: border-color 0.1s, box-shadow 0.1s;
+        }
+
+        .plate.selected-glow:hover .front-face {
+            border-color: #d4d137;
+            box-shadow: inset 0 0 20px rgb(212 209 55 / 0.3), 0 0 15px rgb(212 204 55 / 0.5);
         }
 
     </style>
@@ -1086,6 +1091,36 @@
         return `<div class="pin-body">${sidesHtml}<div></div></div>`;
     }
 
+    function updateHoverPreview(plate) {
+
+        if (gameState.activeLinkerId) {
+            return;
+        }
+
+        clearHoverPreview();
+        if (!plate) return;
+        const hoveredBlock = gameState.blocks.find(b => b.el === plate);
+        if (!hoveredBlock) return;
+        const groupIds = Object.keys(hoveredBlock.group);
+        if (groupIds.length <= 1) return;
+        groupIds.forEach(idStr => {
+            const id = parseInt(idStr, 10);
+            if (id === hoveredBlock.id) return;
+            const member = gameState.blocks.find(b => b.id === id);
+            if (!member) return;
+            member.el.classList.add(1 === hoveredBlock.group[id] ? 'linked-highlight' : 'linked-highlight-reverse');
+        });
+    }
+
+    function clearHoverPreview() {
+
+        if (gameState.activeLinkerId) {
+            return;
+        }
+
+        document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse'));
+    }
+
     function renderBlocks(count) {
         lock.innerHTML = '';
         const centerOffset = (count - 1) / 2;
@@ -1101,6 +1136,9 @@
             const plate = document.createElement('div');
             plate.className = 'plate glow';
             plate.dataset.id = id;
+            plate.addEventListener('mouseenter', () => updateHoverPreview(plate));
+            plate.addEventListener('mouseleave', clearHoverPreview);
+            plate.addEventListener('touchstart', clearHoverPreview, {passive: true});
             let holesHtml = '';
 
             for (let h = 0; h < 7; h++) {
@@ -1221,9 +1259,11 @@
                     });
                     if (navigator.vibrate) navigator.vibrate(50);
                 } else if (gameState.activeLinkerId === curBlock.id) {
+                    //let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
+                    //gameState.dragState.activePlate.classList.toggle('selected-glow', Object.keys(masterBlock.group).length > 1);
                     gameState.activeLinkerId = null;
                     gameState.dragState.activePlate.classList.remove('selected');
-                    document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse'));
+                    //document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse'));
                     if (navigator.vibrate) navigator.vibrate(50);
                 } else {
                     let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
