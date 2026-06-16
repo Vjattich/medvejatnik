@@ -543,6 +543,11 @@
 
         }
 
+        .plate.glow:not(.selected, .linked-highlight, .linked-highlight-reverse):hover .front-face {
+            border-color: rgb(255 255 255 / 0.9);
+            transition: border-color 0.1s, box-shadow 0.1s;
+        }
+
     </style>
 </head>
 <body>
@@ -1094,7 +1099,7 @@
             const zPos = (centerOffset - i) * spacing;
             let prevX = oldBlocks.has(id) ? oldBlocks.get(id).x : 0;
             const plate = document.createElement('div');
-            plate.className = 'plate';
+            plate.className = 'plate glow';
             plate.dataset.id = id;
             let holesHtml = '';
 
