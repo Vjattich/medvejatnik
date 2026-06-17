@@ -543,15 +543,31 @@
 
         }
 
-        .plate.glow:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow):hover .front-face {
-            border-color: rgb(255 255 255 / 0.9);
-            transition: border-color 0.1s, box-shadow 0.1s;
+        @media screen and (min-width: 769px) {
+            .plate.glow:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow):hover .front-face {
+                border-color: rgb(255 255 255 / 0.9);
+                transition: border-color 0.1s, box-shadow 0.1s;
+            }
+
+            .plate.selected-glow:hover .front-face {
+                border-color: #d4d137;
+                box-shadow: inset 0 0 20px rgb(212 209 55 / 0.3), 0 0 15px rgb(212 204 55 / 0.5);
+            }
         }
 
-        .plate.selected-glow:hover .front-face {
-            border-color: #d4d137;
-            box-shadow: inset 0 0 20px rgb(212 209 55 / 0.3), 0 0 15px rgb(212 204 55 / 0.5);
+        @media screen and (max-width: 768px) {
+            .plate.is-touched:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow) .front-face {
+                border-color: rgb(255 255 255 / 0.9);
+                transition: border-color 0.05s, box-shadow 0.05s;
+            }
+
+            .plate.is-touched.selected-glow .front-face {
+                border-color: #d4d137;
+                box-shadow: inset 0 0 20px rgb(212 209 55 / 0.3), 0 0 15px rgb(212 204 55 / 0.5);
+                transition: border-color 0.05s, box-shadow 0.05s;
+            }
         }
+
 
     </style>
 </head>
@@ -1299,6 +1315,7 @@
         if (currentSolution) clearSolutionUI();
 
         gameState.dragState.activePlate = clickedPlate;
+        clickedPlate.classList.add('is-touched');
         gameState.dragState.startInputX = getClientX(e);
         gameState.dragState.isDragging = false;
         const clickedId = parseInt(clickedPlate.dataset.id);
@@ -1360,6 +1377,10 @@
 
     function handleDragEnd() {
         clearTimeout(gameState.dragState.longPressTimer);
+
+        if (gameState.dragState.activePlate) {
+            gameState.dragState.activePlate.classList.remove('is-touched');
+        }
 
         if (gameState.dragState.activePlate && 0 < gameState.dragState.movingGroup.length && true === gameState.dragState.isDragging) {
             const clickedId = parseInt(gameState.dragState.activePlate.dataset.id);
