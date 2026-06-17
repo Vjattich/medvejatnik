@@ -1684,7 +1684,14 @@
                         if (b.pinWrapper && b.pin) {
                             b.pinWrapper.style.transition = 'transform 0.5s ease';
                             b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
-                            updatePinState(b.pin, targetX);
+
+                            b.pin.style.transition = 'transform 0.1s ease-in';
+                            b.pin.style.transform = `translateZ(${pinUnder}px)`;
+
+                            setTimeout(() => {
+                                b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                                updatePinState(b.pin, targetX);
+                            }, 400);
                         }
                     });
                     pIndex++;
@@ -1698,7 +1705,14 @@
                     if (b.pinWrapper && b.pin) {
                         b.pinWrapper.style.transition = 'transform 0.5s ease';
                         b.pinWrapper.style.transform = `translateX(0px)`;
-                        updatePinState(b.pin, 0);
+
+                        b.pin.style.transition = 'transform 0.1s ease-in';
+                        b.pin.style.transform = `translateZ(${pinUnder}px)`;
+
+                        setTimeout(() => {
+                            b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                            updatePinState(b.pin, 0);
+                        }, 400);
                     }
                 });
 
@@ -1762,9 +1776,22 @@
                         offset += direction * 20;
                         if (offset > 50 || offset < -50) direction *= -1;
 
-                        p1.el.style.transform = `translateZ(${p1.z}px) translateX(${offset}px)`;
-                        p2.el.style.transform = `translateZ(${p2.z}px) translateX(${offset}px)`;
-                        p3.el.style.transform = `translateZ(${p3.z}px) translateX(${-offset}px)`;
+                        // Map the active plates and their target direction
+                        [ {b: p1, dir: 1}, {b: p2, dir: 1}, {b: p3, dir: -1} ].forEach(item => {
+                            let currentX = offset * item.dir;
+
+                            // Smooth transitions for the dragging simulation
+                            item.b.el.style.transition = 'transform 0.15s linear';
+                            item.b.el.style.transform = `translateZ(${item.b.z}px) translateX(${currentX}px)`;
+
+                            if (item.b.pinWrapper && item.b.pin) {
+                                item.b.pinWrapper.style.transition = 'transform 0.15s linear';
+                                item.b.pinWrapper.style.transform = `translateX(${-currentX}px)`;
+                                item.b.pin.style.transition = 'transform 0.1s linear';
+                                updatePinState(item.b.pin, currentX);
+                            }
+                        });
+
                         await sleep(150);
                     }
 
