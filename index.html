@@ -1117,6 +1117,7 @@
         if (!plate) return;
         const hoveredBlock = gameState.blocks.find(b => b.el === plate);
         if (!hoveredBlock) return;
+        plate.classList.add('is-touched')
         const groupIds = Object.keys(hoveredBlock.group);
         if (groupIds.length <= 1) return;
         groupIds.forEach(idStr => {
@@ -1135,6 +1136,7 @@
         }
 
         document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse'));
+        document.querySelectorAll('.linked-highlight, .linked-highlight-reverse .is-touched').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
     }
 
     function renderBlocks(count) {
@@ -1315,7 +1317,7 @@
         if (currentSolution) clearSolutionUI();
 
         gameState.dragState.activePlate = clickedPlate;
-        clickedPlate.classList.add('is-touched');
+        updateHoverPreview(gameState.dragState.activePlate)
         gameState.dragState.startInputX = getClientX(e);
         gameState.dragState.isDragging = false;
         const clickedId = parseInt(clickedPlate.dataset.id);
@@ -1379,7 +1381,7 @@
         clearTimeout(gameState.dragState.longPressTimer);
 
         if (gameState.dragState.activePlate) {
-            gameState.dragState.activePlate.classList.remove('is-touched');
+            clearHoverPreview();
         }
 
         if (gameState.dragState.activePlate && 0 < gameState.dragState.movingGroup.length && true === gameState.dragState.isDragging) {
