@@ -1136,7 +1136,7 @@
         }
 
         document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse'));
-        document.querySelectorAll('.linked-highlight, .linked-highlight-reverse .is-touched').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
+        document.querySelectorAll('.linked-highlight, .linked-highlight-reverse, .is-touched').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
     }
 
     function renderBlocks(count) {
