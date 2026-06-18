@@ -477,7 +477,7 @@
 
         @media screen and (max-width: 768px) {
 
-            #squashLabel {
+            #squashLabel, #scaleLabel {
                 display: none !important;
             }
 
@@ -571,7 +571,7 @@
 </head>
 <body>
 <div class="controls">
-    <label class="controls-item">Scale:
+    <label class="controls-item" id="scaleLabel">Scale:
         <input type="range" id="sizeInput" min="0.3" max="2" step="0.1" value="1">
     </label>
     <label class="controls-item" for="countInput">
@@ -658,6 +658,11 @@
             hasMoved: false,
         },
         isMobile: 768 >= window.innerWidth
+    };
+
+    const pinchState = {
+        initialDistance: 0,
+        initialScale: 1
     };
 
     if (gameState.isMobile) {
@@ -1322,6 +1327,16 @@
     }
 
     function handleDragStart(e) {
+
+        if (e.touches && e.touches.length === 2) {
+            pinchState.initialDistance = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
+            return; // Exit early to prevent triggering block dragging
+        }
+
         const clickedPlate = e.target.closest('.plate');
         if (!clickedPlate) return;
 
@@ -1358,6 +1373,36 @@
     }
 
     function handleDragMove(e) {
+
+        if (e.touches && e.touches.length === 2) {
+            e.preventDefault(); // Prevent the browser from zooming the entire page
+
+            // Failsafe in case the user drops a second finger mid-drag
+            if (!pinchState.initialDistance) {
+                pinchState.initialDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
+            }
+
+            const currentDistance = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+
+            let newScale = pinchState.initialScale * (currentDistance / pinchState.initialDistance);
+
+            // Clamp the scale limits to match your original slider (0.3 to 2)
+            if (newScale < 0.3) newScale = 0.3;
+            if (newScale > 2) newScale = 2;
+
+            document.documentElement.style.setProperty('--block-scale', newScale);
+            sizeInput.value = newScale; // Keep the hidden slider synced
+            return; // Exit early to prevent triggering block dragging
+        }
+
+
         if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length) return;
 
         gameState.dragState.hasMoved = true;
@@ -1397,6 +1442,9 @@
     }
 
     function handleDragEnd() {
+
+        pinchState.initialDistance = 0
+
         clearTimeout(gameState.dragState.longPressTimer);
 
         if (gameState.dragState.activePlate) {
