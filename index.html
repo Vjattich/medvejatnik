@@ -567,6 +567,37 @@
             }
         }
 
+        @media (max-width: 768px) {
+
+            body {
+                flex-direction: column;
+                justify-content: flex-start;
+                padding-top: 100px;
+                height: auto;
+                min-height: 100vh;
+                overflow-y: auto;
+            }
+
+            .controls {
+                position: relative;
+                top: auto;
+                left: auto;
+                width: 90%;
+                max-width: 400px;
+                margin-top: 20px;
+                margin-bottom: 30px;
+
+                max-height: 45vh;
+                overflow-y: auto;
+            }
+
+            .dynamic-control.show-stretch {
+                max-height: fit-content;
+                padding-bottom: 10px;
+            }
+
+        }
+
     </style>
 </head>
 <body>
