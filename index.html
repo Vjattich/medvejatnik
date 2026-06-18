@@ -267,7 +267,6 @@
             overflow-y: auto;
             font-size: 13px;
             font-family: monospace;
-            /* display: none; REMOVED to let wrapper handle hiding */
         }
 
         .solution-list div {
@@ -575,7 +574,7 @@
     <label class="controls-item">Scale:
         <input type="range" id="sizeInput" min="0.3" max="2" step="0.1" value="1">
     </label>
-    <label class="controls-item">
+    <label class="controls-item" for="countInput">
         Amount of Blocks:
         <div class="number-control">
             <button id="btnDecreaseBlocks" class="num-btn">-</button>
@@ -655,7 +654,8 @@
             startInputX: 0,
             movingGroup: [],
             isDragging: false,
-            longPressTimer: null
+            longPressTimer: null,
+            hasMoved: false,
         },
         isMobile: 768 >= window.innerWidth
     };
@@ -1121,7 +1121,7 @@
         if (gameState.activeLinkerId) {
             return;
         }
-
+        gameState.isHovering = true;
         clearHoverPreview();
         if (!plate) return;
         const hoveredBlock = gameState.blocks.find(b => b.el === plate);
@@ -1138,14 +1138,19 @@
         });
     }
 
-    function clearHoverPreview() {
+    function clearHoverPreview(isEndHovering) {
 
         if (gameState.activeLinkerId) {
             return;
         }
 
-        document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse'));
+        if (!gameState.isHovering && !isEndHovering) {
+            return;
+        }
+
         document.querySelectorAll('.linked-highlight, .linked-highlight-reverse, .is-touched').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
+        gameState.isHovering = false;
+        console.log(this)
     }
 
     function renderBlocks(count) {
@@ -1164,8 +1169,8 @@
             plate.className = 'plate glow';
             plate.dataset.id = id;
             plate.addEventListener('mouseenter', () => updateHoverPreview(plate));
-            plate.addEventListener('mouseleave', clearHoverPreview);
-            plate.addEventListener('touchstart', clearHoverPreview, {passive: true});
+            plate.addEventListener('mouseleave', clearHoverPreview.bind(true));
+            plate.addEventListener('touchstart', clearHoverPreview.bind(true), {passive: true});
             let holesHtml = '';
 
             for (let h = 0; h < 7; h++) {
@@ -1290,6 +1295,7 @@
                     //gameState.dragState.activePlate.classList.toggle('selected-glow', Object.keys(masterBlock.group).length > 1);
                     gameState.activeLinkerId = null;
                     gameState.dragState.activePlate.classList.remove('selected');
+                    updateHoverPreview(gameState.dragState.activePlate)
                     //document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse'));
                     if (navigator.vibrate) navigator.vibrate(50);
                 } else {
@@ -1318,6 +1324,8 @@
     function handleDragStart(e) {
         const clickedPlate = e.target.closest('.plate');
         if (!clickedPlate) return;
+
+        gameState.dragState.hasMoved = false;
 
         if (e.type === 'mousedown') {
             e.preventDefault();
@@ -1351,6 +1359,8 @@
 
     function handleDragMove(e) {
         if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length) return;
+
+        gameState.dragState.hasMoved = true;
 
         let clientX = getClientX(e);
         if (Math.abs(clientX - gameState.dragState.startInputX) > DRAG_THRESHOLD) {
