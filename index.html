@@ -569,33 +569,26 @@
 
         @media (max-width: 768px) {
 
-            body {
-                flex-direction: column;
-                justify-content: flex-start;
-                padding-top: 100px;
-                height: auto;
-                min-height: 100vh;
-                overflow-y: auto;
+            .scene {
+                top: 8dvh;
             }
 
             .controls {
-                position: relative;
-                top: auto;
-                left: auto;
+                position: absolute;
+                top: calc(100dvh - 380px);
+                bottom: auto;
+                left: 50%;
+                transform: translateX(-50%);
                 width: 90%;
                 max-width: 400px;
-                order: 2;
-                margin-top: 20px;
-                margin-bottom: 30px;
-                max-height: 45vh;
-                overflow-y: auto;
+                z-index: 100;
+                box-sizing: border-box;
             }
 
             .dynamic-control.show-stretch {
-                max-height: fit-content;
-                padding-bottom: 10px;
+                max-height: 200px;
+                overflow-y: auto;
             }
-
         }
 
     </style>
@@ -630,20 +623,22 @@
         <div id="solutionList" class="solution-list"></div>
         <button id="nextBtn" title="Step Forward">⏭</button>
     </div>
-    <div id="tutorialOverlay" class="tutorial-overlay">
-        <div id="tutorialArrow" class="tutorial-arrow" style="display: none;">↓</div>
-        <div id="tutorialBubble" class="tutorial-bubble" style="display: none;">
-            <div id="tutorialText"></div>
-            <div class="tutorial-actions">
-                <button id="tutorialNext">Next</button>
-                <button id="tutorialSkip">End Guide</button>
-            </div>
-        </div>
-    </div>
+
 </div>
 
 <div class="scene">
     <div class="lock-mechanism" id="lock"></div>
+</div>
+
+<div id="tutorialOverlay" class="tutorial-overlay">
+    <div id="tutorialArrow" class="tutorial-arrow" style="display: none;">↓</div>
+    <div id="tutorialBubble" class="tutorial-bubble" style="display: none;">
+        <div id="tutorialText"></div>
+        <div class="tutorial-actions">
+            <button id="tutorialNext">Next</button>
+            <button id="tutorialSkip">End Guide</button>
+        </div>
+    </div>
 </div>
 
 <script>
