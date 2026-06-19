@@ -591,6 +591,12 @@
             }
         }
 
+        body.is-zooming .plate .front-face {
+            border-color: #999 !important;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9) !important;
+            transition: none !important;
+        }
+
     </style>
 </head>
 <body>
@@ -1322,12 +1328,9 @@
                     });
                     if (navigator.vibrate) navigator.vibrate(50);
                 } else if (gameState.activeLinkerId === curBlock.id) {
-                    //let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
-                    //gameState.dragState.activePlate.classList.toggle('selected-glow', Object.keys(masterBlock.group).length > 1);
                     gameState.activeLinkerId = null;
                     gameState.dragState.activePlate.classList.remove('selected');
                     updateHoverPreview(gameState.dragState.activePlate)
-                    //document.querySelectorAll('.linked-highlight, .linked-highlight-reverse').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse'));
                     if (navigator.vibrate) navigator.vibrate(50);
                 } else {
                     let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
@@ -1353,21 +1356,39 @@
     }
 
     function handleDragStart(e) {
+        if (e.touches && e.touches.length >= 2) {
+            document.body.classList.add('is-zooming');
 
-        if (e.touches && e.touches.length === 2) {
             pinchState.initialDistance = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
             pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
-            return; // Exit early to prevent triggering block dragging
+
+            clearTimeout(gameState.dragState.longPressTimer);
+            if (gameState.dragState.activePlate) {
+                gameState.dragState.movingGroup.forEach(item => {
+                    item.block.x = item.initialX;
+                    item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${item.initialX}px)`;
+                    if (item.block.pinWrapper && item.block.pin) {
+                        item.block.pinWrapper.style.transform = `translateX(${-item.initialX}px)`;
+                        updatePinState(item.block.pin, item.initialX);
+                    }
+                });
+
+                clearHoverPreview(true);
+                gameState.dragState.activePlate = null;
+                gameState.dragState.movingGroup = [];
+                gameState.dragState.isDragging = false;
+            }
+
+            return;
         }
 
         const clickedPlate = e.target.closest('.plate');
         if (!clickedPlate) return;
 
         gameState.dragState.hasMoved = false;
-
         if (e.type === 'mousedown') {
             e.preventDefault();
         }
@@ -1380,10 +1401,11 @@
         gameState.dragState.isDragging = false;
         const clickedId = parseInt(clickedPlate.dataset.id);
         gameState.dragState.movingGroup = [];
+
         let draggedBlock = gameState.blocks.find(b => b.id === clickedId);
         if (!draggedBlock) return;
-        let draggedBlockPolarity = draggedBlock.group[draggedBlock.id] || 1;
 
+        let draggedBlockPolarity = draggedBlock.group[draggedBlock.id] || 1;
         Object.keys(draggedBlock.group).forEach(idStr => {
             let id = parseInt(idStr);
             let rawDir = draggedBlock.group[id];
@@ -1395,6 +1417,7 @@
                 if (b.pinWrapper) b.pinWrapper.style.transition = 'none';
             }
         });
+
         longPress(clickedId);
     }
 
@@ -1419,13 +1442,12 @@
 
             let newScale = pinchState.initialScale * (currentDistance / pinchState.initialDistance);
 
-            // Clamp the scale limits to match your original slider (0.3 to 2)
             if (newScale < 0.3) newScale = 0.3;
             if (newScale > 2) newScale = 2;
 
             document.documentElement.style.setProperty('--block-scale', newScale);
-            sizeInput.value = newScale; // Keep the hidden slider synced
-            return; // Exit early to prevent triggering block dragging
+            sizeInput.value = newScale;
+            return;
         }
 
 
@@ -1467,10 +1489,13 @@
         });
     }
 
-    function handleDragEnd() {
+    function handleDragEnd(e) {
 
-        pinchState.initialDistance = 0
+        if (!e || !e.touches || e.touches.length < 2) {
+            document.body.classList.remove('is-zooming');
+        }
 
+        pinchState.initialDistance = 0;
         clearTimeout(gameState.dragState.longPressTimer);
 
         if (gameState.dragState.activePlate) {
@@ -1480,7 +1505,6 @@
         if (gameState.dragState.activePlate && 0 < gameState.dragState.movingGroup.length && true === gameState.dragState.isDragging) {
             const clickedId = parseInt(gameState.dragState.activePlate.dataset.id);
             let primary = gameState.dragState.movingGroup.find(item => item.block.id === clickedId) || gameState.dragState.movingGroup[0];
-
             let currentX = undefined !== primary.currentX ? primary.currentX : primary.initialX;
             let holeIndex = Math.round(currentX / HOLE_SPACING);
             let snappedX = holeIndex * HOLE_SPACING;
@@ -1492,7 +1516,6 @@
                 let cx = undefined !== item.currentX ? item.currentX : item.initialX;
                 let limitLeft = 1 === item.dir ? -120 - cx : cx - 120;
                 let limitRight = 1 === item.dir ? 120 - cx : cx + 120;
-
                 if (limitLeft > maxAllowedShiftLeft) maxAllowedShiftLeft = limitLeft;
                 if (limitRight < maxAllowedShiftRight) maxAllowedShiftRight = limitRight;
             });
@@ -1502,7 +1525,6 @@
 
             gameState.dragState.movingGroup.forEach(item => {
                 let cx = undefined !== item.currentX ? item.currentX : item.initialX;
-
                 let finalX = cx + (snapDelta * item.dir);
                 item.block.x = finalX;
                 item.block.el.style.transition = 'transform 0.2s ease-out';
@@ -1514,6 +1536,7 @@
                 }
             });
         }
+
         gameState.dragState.activePlate = null;
         gameState.dragState.movingGroup = [];
     }
@@ -1690,7 +1713,6 @@
             b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
         });
 
-        //check
         if (6 !== parseInt(countInput.value) && 2 !== tutorialStep) {
             countInput.value = 6;
             renderBlocks(6);
@@ -1860,7 +1882,6 @@
                         offset += direction * 20;
                         if (offset > 50 || offset < -50) direction *= -1;
 
-                        // Map the active plates and their target direction
                         [ {b: p1, dir: 1}, {b: p2, dir: 1}, {b: p3, dir: -1} ].forEach(item => {
                             let currentX = offset * item.dir;
 
