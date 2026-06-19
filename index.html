@@ -337,6 +337,9 @@
         solutionList.innerHTML = '';
         setStatus("", "info");
         solveBtn.disabled = false;
+        gameState.blocks.forEach(b => {
+            b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse');
+        });
     }
 
     function createSolverWorker() {
@@ -605,6 +608,10 @@
 
         Array.from(solutionList.children).forEach(el => el.classList.remove('active-step'));
 
+        gameState.blocks.forEach(b => {
+            b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse');
+        });
+
         if (currentStepIndex < currentSolution.length) {
             let activeDomIndex = moveMap[currentStepIndex];
             if (undefined !== activeDomIndex && solutionList.children[activeDomIndex]) {
@@ -612,6 +619,13 @@
                 activeEl.classList.add('active-step');
                 activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
             }
+
+            const nextMove = currentSolution[currentStepIndex];
+            const activeBlock = gameState.blocks.find(b => b.id === nextMove.plate);
+            if (activeBlock) {
+                activeBlock.el.classList.add('is-touched');
+            }
+
         } else if (0 < currentSolution.length) {
             let lastDomIndex = moveMap[currentSolution.length - 1];
             if (undefined !== lastDomIndex && solutionList.children[lastDomIndex]) {
@@ -769,6 +783,9 @@
     }
 
     function updateHoverPreview(plate) {
+
+        if (gameState.activeLinkerId || currentSolution) return;
+
         if (gameState.activeLinkerId) return;
 
         clearHoverPreview(true);
@@ -797,6 +814,8 @@
 
     function clearHoverPreview(isEndHovering) {
 
+        if (gameState.activeLinkerId || currentSolution) return;
+
         if (gameState.activeLinkerId) {
             return;
         }
@@ -809,8 +828,6 @@
         if (!gameState.isHovering && !isEndHovering) {
             return;
         }
-
-        console.log(1)
 
         document.querySelectorAll('.linked-highlight, .linked-highlight-reverse, .is-touched').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
         gameState.isHovering = false;
