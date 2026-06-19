@@ -802,6 +802,7 @@
         }
 
         if (gameState.lastAction === 'deselect') {
+            gameState.lastAction === 'deselectDragEnd';
             return;
         }
 
@@ -1051,6 +1052,8 @@
             }
         });
 
+        gameState.lastAction = 'handleDragStart'
+
         longPress(clickedId);
     }
 
@@ -1175,12 +1178,12 @@
 
         gameState.dragState.activePlate = null;
         gameState.dragState.movingGroup = [];
-        gameState.lastAction = 'handleDragEnd'
+        gameState.lastAction = gameState.lastAction === 'deselectDragEnd' ?  gameState.lastAction : 'handleDragEnd'
 
         if (e && 'mouseup' === e.type) {
 
             //Ghost touch
-            if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
+            if ((Date.now() - (gameState.lastTouchTime || 0) < 500)  || gameState.lastAction === 'deselectDragEnd') return;
 
             const elementUnderCursor = document.elementFromPoint(e.clientX, e.clientY);
 
