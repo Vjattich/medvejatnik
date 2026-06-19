@@ -750,6 +750,33 @@
     }
     setInitialScale();
 
+
+    function triggerGamepadRumble(durationInMs) {
+
+        if (!navigator.getGamepads) {
+            return;
+        }
+
+        const gamepads = navigator.getGamepads();
+
+        for (let gamepad of gamepads) {
+            // Check 2 & 3: Does the controller exist, have actuators, and support playEffect?
+            if (gamepad && gamepad.vibrationActuator && typeof gamepad.vibrationActuator.playEffect === 'function') {
+
+                // All feature detections passed, safe to vibrate
+                gamepad.vibrationActuator.playEffect("dual-rumble", {
+                    startDelay: 0,
+                    duration: durationInMs,
+                    weakMagnitude: 1.0,  // Fast, sharp clicking motor
+                    strongMagnitude: 0.0 // Keep the heavy, booming motor off
+                }).catch(error => {
+                });
+
+                break; // Stop after finding the first valid controller
+            }
+        }
+    }
+
     function updatePinState(pin, currentX) {
         let holeIndex = Math.round(currentX / HOLE_SPACING);
         let distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING));
@@ -759,6 +786,7 @@
         let wasOverHole = pin.dataset.wasOverHole === 'true';
         if (isOverAnyHole && !wasOverHole) {
             if (navigator.vibrate) navigator.vibrate(15);
+            triggerGamepadRumble(60);
         }
         pin.dataset.wasOverHole = isOverAnyHole;
 
@@ -978,12 +1006,14 @@
                         }
                     });
                     if (navigator.vibrate) navigator.vibrate(50);
+                    triggerGamepadRumble(60)
                 } else if (gameState.activeLinkerId === curBlock.id) {
                     gameState.activeLinkerId = null;
                     gameState.dragState.activePlate.classList.remove('selected');
                     gameState.lastAction = 'deselect';
                     updateHoverPreview(gameState.dragState.activePlate)
                     if (navigator.vibrate) navigator.vibrate(50);
+                    triggerGamepadRumble(60)
                 } else {
                     let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
                     if (masterBlock.group[curBlock.id]) {
@@ -1002,6 +1032,7 @@
                         gameState.dragState.activePlate.classList.add('linked-highlight');
                     }
                     if (navigator.vibrate) navigator.vibrate(50);
+                    triggerGamepadRumble(60)
                 }
             }
         }, gameState.activeLinkerId ? SHORT_PRESS_DURATION : LONG_PRESS_DURATION);
