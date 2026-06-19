@@ -751,12 +751,16 @@
     setInitialScale();
 
     function updatePinState(pin, currentX) {
-
         let holeIndex = Math.round(currentX / HOLE_SPACING);
         let distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING));
-
         let isOverAnyHole = 3 > distanceToHole;
         let isCorrectHole = (0 === holeIndex);
+
+        let wasOverHole = pin.dataset.wasOverHole === 'true';
+        if (isOverAnyHole && !wasOverHole) {
+            if (navigator.vibrate) navigator.vibrate(15);
+        }
+        pin.dataset.wasOverHole = isOverAnyHole;
 
         if (false === isOverAnyHole) {
             pin.style.transform = `translateZ(${pinUnder}px)`;
