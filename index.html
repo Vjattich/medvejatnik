@@ -6,209 +6,639 @@
     <title>Gothic Lockpicker</title>
     <link rel="icon" href="icon.png">
     <style>
-        :root {--block-scale: 1;}
+        :root {
+            --block-scale: 1;
+        }
 
         /* Prevent default iOS/Android grey tap flashes */
-        * { -webkit-tap-highlight-color: transparent; }
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
 
         body {
-            margin: 0; padding: 0; background-color: orange; color: #fff;
-            font-family: sans-serif; display: flex; justify-content: center;
-            align-items: center; height: 100vh; overflow: hidden;
-            user-select: none; touch-action: none;
+            margin: 0;
+            padding: 0;
+            background-color: orange;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none;
         }
 
         .controls {
-            position: absolute; top: 20px; left: 20px; background: #1a1a1a;
-            padding: 20px; border: 1px solid #333; border-radius: 8px;
-            z-index: 10; display: flex; flex-direction: column;
-            width: 400px; font-size: 17px;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #1a1a1a;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            width: 400px;
+            font-size: 17px;
         }
 
-        .controls-item { margin-bottom: 15px; }
+        .controls-item {
+            margin-bottom: 15px;
+        }
 
         .dynamic-control {
-            max-height: 0; opacity: 0; overflow: hidden; margin-top: 0;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            margin-top: 0;
             transition: max-height 0.4s ease-out, opacity 0.3s ease-out, margin-top 0.4s ease-out;
         }
-        .dynamic-control.show-stretch { max-height: 200px; opacity: 1; margin-top: 15px; }
 
-        #countInput { font-size: 17px; }
+        .dynamic-control.show-stretch {
+            max-height: 200px;
+            opacity: 1;
+            margin-top: 15px;
+        }
+
+        #countInput {
+            font-size: 17px;
+        }
 
         .controls label:not(.toggle-label) {
-            display: flex; flex-direction: row; justify-content: space-between;
-            align-items: center; font-size: 17px; gap: 8px; color: #ccc;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 17px;
+            gap: 8px;
+            color: #ccc;
         }
 
         .toggle-label {
-            display: flex; flex-direction: row; align-items: center;
-            font-size: 13px; gap: 8px; color: #ccc; cursor: pointer;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            font-size: 13px;
+            gap: 8px;
+            color: #ccc;
+            cursor: pointer;
         }
-        .toggle-label input { cursor: pointer; width: 16px; height: 16px; margin: 0; }
 
-        .controls input[type="range"], .controls input[type="number"] {
-            cursor: pointer; background: #222; color: #fff; border: 1px solid #444;
-            padding: 5px; border-radius: 4px; width: 100%; box-sizing: border-box;
+        .toggle-label input {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            margin: 0;
         }
 
-        .number-control { display: flex; align-items: center; gap: 5px; width: 100%; }
+        .controls input[type="range"],
+        .controls input[type="number"] {
+            cursor: pointer;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 5px;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .number-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            width: 100%;
+        }
 
         .num-btn {
-            background: #333; color: #fff; border: 1px solid #444 !important;
-            border-radius: 4px; width: 32px; height: 30px; font-size: 18px;
-            font-weight: bold; cursor: pointer; display: flex;
-            justify-content: center; align-items: center; padding: 0 !important;
+            background: #333;
+            color: #fff;
+            border: 1px solid #444 !important;
+            border-radius: 4px;
+            width: 32px;
+            height: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 !important;
         }
-        .num-btn:active { background: #222; }
 
-        .number-control input[type="number"] { -moz-appearance: textfield; text-align: center; width: 100%; }
+        .num-btn:active,
+        .controls button:active {
+            background: #222;
+        }
+
+        .number-control input[type="number"] {
+            -moz-appearance: textfield;
+            text-align: center;
+            width: 100%;
+        }
+
         .number-control input[type="number"]::-webkit-inner-spin-button,
-        .number-control input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .number-control input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
 
         .controls button {
-            cursor: pointer; padding: 8px; border-radius: 4px; border: 1px solid #444;
-            background: #333; color: white; font-weight: bold; transition: background 0.2s; font-size: 17px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            font-weight: bold;
+            transition: background 0.2s;
+            font-size: 17px;
         }
-        .controls button:active { background: #222; }
-        .controls button:disabled { background: #222; color: #666; cursor: not-allowed; opacity: 0.7; }
 
-        .number-control button { width: 80%; }
-
-        .action-row { display: flex; flex-direction: row; gap: 10px; width: 100%; align-items: stretch; }
-
-        #resetBtn { flex: 0 0 44px; padding: 0; margin: 0; font-size: 22px; display: flex; justify-content: center; align-items: center; background: #333; }
-        #solveBtn { flex: 1; height: 44px; margin: 0; font-weight: bold; background: orange; border-color: #357abd; color: #111; }
-        #solveBtn:active:not(:disabled) { background: #e59400; }
-
-        .play-status-row { display: flex; justify-content: space-between; align-items: center; }
-        .play-status-row.show-stretch { min-height: 30px; }
-        .play-status-row button, .step-controls-row button {
-            padding: 6px 15px; font-size: 14px; background: #66d437; color: #111; flex-shrink: 0;
+        .controls button:disabled {
+            background: #222;
+            color: #666;
+            cursor: not-allowed;
+            opacity: 0.7;
         }
-        .step-controls-row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
 
-        .status-message { font-size: 13px; font-weight: bold; }
+        .number-control button {
+            width: 80%;
+        }
+
+        .action-row {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            width: 100%;
+            align-items: stretch;
+        }
+
+        #resetBtn {
+            flex: 0 0 44px;
+            padding: 0;
+            margin: 0;
+            font-size: 22px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #333;
+        }
+
+        #solveBtn {
+            flex: 1;
+            height: 44px;
+            margin: 0;
+            font-weight: bold;
+            background: orange;
+            border-color: #357abd;
+            color: #111;
+        }
+
+        #solveBtn:active:not(:disabled) {
+            background: #e59400;
+        }
+
+        .play-status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .play-status-row.show-stretch {
+            min-height: 30px;
+        }
+
+        /* Replaced inline flex style */
+        .playback-controls {
+            display: flex;
+        }
+
+        .play-status-row button,
+        .step-controls-row button {
+            padding: 6px 15px;
+            font-size: 14px;
+            background: #66d437;
+            color: #111;
+            flex-shrink: 0;
+        }
+
+        /* Extracted inline styles for specific playback buttons */
+        #restartSeqBtn {
+            display: none;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            border-right: none;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        #playBtn {
+            display: none;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .step-controls-row {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .step-controls-row.is-expanded-parent {
+            max-height: 1000px !important;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .status-message {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
         .status-error { color: #ff4444; }
         .status-success { color: #66d437; }
         .status-info { color: #37a1d4; }
 
         .solution-list {
-            flex-grow: 1; background: #222; border: 1px solid #444; border-radius: 4px;
-            padding: 10px; max-height: 120px; overflow-y: auto; font-size: 13px; font-family: monospace;
+            flex-grow: 1;
+            background: #222;
+            border: 1px solid #444;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            padding: 10px;
+            height: 120px;
+            max-height: 120px;
+            overflow-y: auto !important;
+            font-size: 13px;
+            font-family: monospace;
+            transition: height 0.3s ease-out, max-height 0.3s ease-out;
         }
-        .solution-list div { padding: 4px 5px; border-bottom: 1px solid #333; transition: background 0.2s, color 0.2s; border-radius: 3px; box-sizing: border-box; }
-        .solution-list div:last-child { border-bottom: none; }
-        .solution-list div.active-step { background: rgba(102, 212, 55, 0.2); color: #7aef48; font-weight: bold; }
 
-        .scene { position: relative; left: 150px; perspective: 1200px; }
+        .solution-list div {
+            padding: 4px 5px;
+            border-bottom: 1px solid #333;
+            transition: background 0.2s, color 0.2s;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .solution-list div:last-child {
+            border-bottom: none;
+        }
+
+        .solution-list div.active-step {
+            background: rgba(102, 212, 55, 0.2);
+            color: #7aef48;
+            font-weight: bold;
+        }
+
+        .expand-list-item {
+            display: block;
+            width: 100%;
+            background: #2a2a2a;
+            color: #888;
+            border: 1px solid #444;
+            border-top: 1px solid #111;
+            padding: 6px 0;
+            margin: 0;
+            font-size: 12px;
+            font-family: monospace;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 0 0 4px 4px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .expand-list-item:active {
+            background: #3a3a3a;
+            color: #fff;
+        }
+
+        .scene {
+            position: relative;
+            left: 150px;
+            perspective: 1200px;
+        }
+
         .lock-mechanism {
-            position: relative; width: 340px; height: 200px; transform-style: preserve-3d;
+            position: relative;
+            width: 340px;
+            height: 200px;
+            transform-style: preserve-3d;
             transform: scale(var(--block-scale)) rotateX(-30deg) rotateY(-40deg) rotateZ(0deg);
             transition: transform 0.2s ease-out;
         }
 
         .plate {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            transform-style: preserve-3d; transition: transform 0.2s ease-out;
-            cursor: grab; touch-action: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.2s ease-out;
+            cursor: grab;
+            touch-action: none;
         }
-        .plate:active { cursor: grabbing; }
+
+        .plate:active {
+            cursor: grabbing;
+        }
 
         .front-face {
-            position: absolute; width: 100%; height: 100%; background: linear-gradient(135deg, #2a2a2a, #111);
-            border: 5px solid #999; border-radius: 30px; box-sizing: border-box; transform: translateZ(12px);
-            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9); transition: border-color 0.2s, box-shadow 0.2s;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2a2a2a, #111);
+            border: 5px solid #999;
+            border-radius: 30px;
+            box-sizing: border-box;
+            transform: translateZ(12px);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .top-face, .bottom-face {
+            position: absolute;
+            left: 30px;
+            width: calc(100% - 60px);
+            height: 24px;
+            background: #777;
+            box-sizing: border-box;
         }
 
         .top-face {
-            position: absolute; top: 0; left: 30px; width: calc(100% - 60px); height: 24px;
-            background: #777; box-sizing: border-box; transform-origin: top;
-            transform: translateZ(12px) rotateX(-90deg); display: flex;
-            justify-content: space-evenly; align-items: center; transform-style: preserve-3d;
+            top: 0;
+            transform-origin: top;
+            transform: translateZ(12px) rotateX(-90deg);
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            transform-style: preserve-3d;
         }
-        .right-face { position: absolute; top: 29px; right: 0; width: 24px; height: calc(100% - 60px); background: #777; border-right: 1px solid #777; box-sizing: border-box; transform-origin: right; transform: translateZ(-11px) rotateY(90deg); }
-        .left-face { position: absolute; top: 29px; left: 0; width: 24px; height: calc(100% - 60px); background: #777; border-left: 1px solid #777; box-sizing: border-box; transform-origin: left; transform: translateZ(-11px) rotateY(-90deg); }
-        .bottom-face { position: absolute; bottom: 0; left: 30px; width: calc(100% - 60px); height: 24px; background: #777; box-sizing: border-box; transform-origin: bottom; transform: translateZ(12px) rotateX(90deg); }
 
-        .corner-tube { position: absolute; width: 0; height: 0; transform-style: preserve-3d; }
+        .bottom-face {
+            bottom: 0;
+            transform-origin: bottom;
+            transform: translateZ(12px) rotateX(90deg);
+        }
+
+        .right-face, .left-face {
+            position: absolute;
+            top: 29px;
+            width: 24px;
+            height: calc(100% - 60px);
+            background: #777;
+            box-sizing: border-box;
+        }
+
+        .right-face {
+            right: 0;
+            border-right: 1px solid #777;
+            transform-origin: right;
+            transform: translateZ(-11px) rotateY(90deg);
+        }
+
+        .left-face {
+            left: 0;
+            border-left: 1px solid #777;
+            transform-origin: left;
+            transform: translateZ(-11px) rotateY(-90deg);
+        }
+
+        .corner-tube {
+            position: absolute;
+            width: 0;
+            height: 0;
+            transform-style: preserve-3d;
+        }
+
         .tube-tr { top: 30px; right: 30px; }
         .tube-br { bottom: 30px; right: 30px; }
         .tube-bl { bottom: 30px; left: 30px; }
         .tube-tl { top: 31px; left: 30px; }
 
-        .tube-panel { position: absolute; left: -5px; top: -12px; width: 8px; height: 24px; background: #777; border-left: 1px solid #777; transform-origin: center center; }
+        .tube-panel {
+            position: absolute;
+            left: -5px;
+            top: -12px;
+            width: 8px;
+            height: 24px;
+            background: #777;
+            border-left: 1px solid #777;
+            transform-origin: center center;
+        }
 
         .hole {
-            width: 12px; height: 12px; background-color: #000; border-radius: 50%;
-            box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.3); position: relative;
-            transform-style: preserve-3d; z-index: 1;
+            width: 12px;
+            height: 12px;
+            background-color: #000;
+            border-radius: 50%;
+            box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.3);
+            position: relative;
+            transform-style: preserve-3d;
+            z-index: 1;
         }
+
         .pin-hole { z-index: 5; }
 
-        .pin-wrapper { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-style: preserve-3d; z-index: 10; pointer-events: none; }
-        .pin { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateZ(0px); z-index: 20; opacity: 0; }
+        .pin-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .pin {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateZ(0px);
+            z-index: 20;
+            opacity: 0;
+        }
+
         .pin.pin-visible { opacity: 1; }
 
-        .pin-cap { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 30% 30%, #e6b981, #b87333); border-radius: 50%; transform: translateZ(0); }
-        .pin-body { position: absolute; top: 0; left: 0; width: 100%; height: 19px; opacity: 0; transform-style: preserve-3d; transform: translateZ(-0.4px); }
-        .pin-side { position: absolute; top: 30%; left: calc(50% - 1.5px); width: 3px; height: 18px; background: linear-gradient(180deg, #b87333, #5a3212); transform-origin: center top; backface-visibility: hidden; }
+        .pin-cap {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 30% 30%, #e6b981, #b87333);
+            border-radius: 50%;
+            transform: translateZ(0);
+        }
+
+        .pin-body {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 19px;
+            opacity: 0;
+            transform-style: preserve-3d;
+            transform: translateZ(-0.4px);
+        }
+
+        .pin-side {
+            position: absolute;
+            top: 30%;
+            left: calc(50% - 1.5px);
+            width: 3px;
+            height: 18px;
+            background: linear-gradient(180deg, #b87333, #5a3212);
+            transform-origin: center top;
+            backface-visibility: hidden;
+        }
+
         .pin.pin-body-visible .pin-body { opacity: 1; }
 
         /* BASE HIGHLIGHTS */
-        .plate.selected .front-face { border-color: #66d437; box-shadow: inset 0 0 20px rgba(102, 212, 55, 0.3), 0 0 15px rgba(102, 212, 55, 0.5); }
-        .plate.linked-highlight .front-face { border-color: #37a1d4; box-shadow: inset 0 0 20px rgba(55, 161, 212, 0.3), 0 0 15px rgba(55, 161, 212, 0.5); }
-        .plate.linked-highlight-reverse .front-face { border-color: #d43737; box-shadow: inset 0 0 20px rgba(212, 55, 55, 0.3), 0 0 15px rgba(212, 55, 55, 0.5); }
-        body.is-zooming .plate .front-face { border-color: #999 !important; box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9) !important; transition: none !important; }
+        .plate.selected .front-face {
+            border-color: #66d437;
+            box-shadow: inset 0 0 20px rgba(102, 212, 55, 0.3), 0 0 15px rgba(102, 212, 55, 0.5);
+        }
+
+        .plate.linked-highlight .front-face {
+            border-color: #37a1d4;
+            box-shadow: inset 0 0 20px rgba(55, 161, 212, 0.3), 0 0 15px rgba(55, 161, 212, 0.5);
+        }
+
+        .plate.linked-highlight-reverse .front-face {
+            border-color: #d43737;
+            box-shadow: inset 0 0 20px rgba(212, 55, 55, 0.3), 0 0 15px rgba(212, 55, 55, 0.5);
+        }
+
+        body.is-zooming .plate .front-face {
+            border-color: #999 !important;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9) !important;
+            transition: none !important;
+        }
 
         /* --- STRICT MOUSE HOVER STATES (IGNORED BY MOBILE/TOUCH DEVICES) --- */
         @media (hover: hover) {
-            .num-btn:hover { background: #444; }
-            .controls button:hover { background: #444; }
-            #resetBtn:hover { background: #444; }
+            .num-btn:hover,
+            .controls button:hover,
+            #resetBtn:hover {
+                background: #444;
+            }
+
             #solveBtn:hover:not(:disabled) { background: #ffa600; }
-            .play-status-row button:hover:not(:disabled) { background: #7aef48; }
+            .play-status-row button:hover:not(:disabled),
             .step-controls-row button:hover:not(:disabled) { background: #7aef48; }
 
             .plate.glow:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow):hover .front-face {
-                border-color: rgba(255, 255, 255, 0.9); transition: border-color 0.1s, box-shadow 0.1s;
+                border-color: rgba(255, 255, 255, 0.9);
+                transition: border-color 0.1s, box-shadow 0.1s;
             }
+
             .plate.selected-glow:hover .front-face {
-                border-color: #d4d137; box-shadow: inset 0 0 20px rgba(212, 209, 55, 0.3), 0 0 15px rgba(212, 204, 55, 0.5);
+                border-color: #d4d137;
+                box-shadow: inset 0 0 20px rgba(212, 209, 55, 0.3), 0 0 15px rgba(212, 204, 55, 0.5);
             }
         }
 
         /* --- UNIVERSAL JS/TOUCH HIGHLIGHT STATES --- */
         .plate.is-touched:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow) .front-face {
-            border-color: rgba(255, 255, 255, 0.9); transition: border-color 0.05s, box-shadow 0.05s;
-        }
-        .plate.is-touched.selected-glow .front-face {
-            border-color: #d4d137; box-shadow: inset 0 0 20px rgba(212, 209, 55, 0.3), 0 0 15px rgba(212, 204, 55, 0.5);
+            border-color: rgba(255, 255, 255, 0.9);
             transition: border-color 0.05s, box-shadow 0.05s;
+        }
+
+        .plate.is-touched.selected-glow .front-face {
+            border-color: #d4d137;
+            box-shadow: inset 0 0 20px rgba(212, 209, 55, 0.3), 0 0 15px rgba(212, 204, 55, 0.5);
+            transition: border-color 0.05s, box-shadow 0.05s;
+        }
+
+        /* Extracted Tutorial Styles */
+        #tutorialArrow,
+        #tutorialBubble {
+            display: none;
         }
 
         /* --- CONSOLIDATED MOBILE LAYOUT --- */
         @media screen and (max-width: 768px) {
-            #squashLabel, #scaleLabel { display: none !important; }
+            #squashLabel, #scaleLabel, #expandBtn {
+                display: none !important;
+            }
 
-            body { flex-direction: column; justify-content: flex-start; padding-top: 15vh; }
-            .scene { left: 0 !important; top: 8dvh; bottom: auto; order: 1; margin: 0; }
+            body {
+                flex-direction: column;
+                justify-content: flex-start;
+                padding-top: 15vh;
+            }
+
+            .scene {
+                left: 0 !important;
+                top: 8dvh;
+                bottom: auto;
+                order: 1;
+                margin: 0;
+            }
 
             .controls {
-                position: absolute; top: 65%; bottom: auto; left: 50%;
-                transform: translateX(-50%); width: 90%; max-width: 400px;
-                padding: 15px; margin: 0; z-index: 100; box-sizing: border-box; font-size: 14px;
+                position: absolute;
+                top: 65%;
+                bottom: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 90%;
+                max-width: 400px;
+                padding: 15px;
+                margin: 0;
+                z-index: 100;
+                box-sizing: border-box;
+                font-size: 14px;
             }
-            .controls-item { margin-bottom: 10px; }
 
-            .dynamic-control.show-stretch { margin-top: 10px; max-height: 200px; overflow-y: auto; }
+            .controls-item {
+                margin-bottom: 10px;
+            }
+
+            .dynamic-control.show-stretch {
+                margin-top: 10px;
+                max-height: 200px;
+                overflow-y: auto;
+            }
 
             .solution-list {
-                padding: 0 !important; height: 32px; min-height: 32px;
-                max-height: 32px !important; overflow-y: hidden !important; scroll-behavior: smooth;
+                padding: 0 !important;
+                height: 32px;
+                min-height: 32px;
+                max-height: 32px !important;
+                overflow-y: hidden !important;
+                scroll-behavior: smooth;
             }
-            .solution-list div { height: 32px; line-height: 32px; border-bottom: none !important; text-align: center; padding: 0 5px !important; }
 
-            .controls button, .controls label:not(.toggle-label), #countInput { font-size: 14px; }
+            .solution-list div {
+                height: 32px;
+                line-height: 32px;
+                border-bottom: none !important;
+                text-align: center;
+                padding: 0 5px !important;
+            }
+
+            .controls button,
+            .controls label:not(.toggle-label),
+            #countInput {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -217,8 +647,7 @@
     <label class="controls-item" id="scaleLabel">Scale:
         <input type="range" id="sizeInput" min="0.3" max="2" step="0.1" value="1">
     </label>
-    <label class="controls-item" for="countInput">
-        Amount of Blocks:
+    <label class="controls-item" for="countInput">Amount of Blocks:
         <div class="number-control">
             <button id="btnDecreaseBlocks" class="num-btn">-</button>
             <input type="number" id="countInput" min="3" max="8" value="6" readonly>
@@ -229,20 +658,24 @@
         <button id="resetBtn" title="Reset Lock" aria-label="Reset">&#x21BB;</button>
         <button id="solveBtn">Solve Lock</button>
     </div>
-
     <label class="toggle-label dynamic-control" id="squashLabel">
         <input type="checkbox" id="squashMovesCheck" checked>Squash
     </label>
     <div class="play-status-row dynamic-control">
         <div id="statusMsg" class="status-message"></div>
-        <button id="playBtn" title="Play Full Solution" style="display: none;">▶ Play</button>
+        <div class="playback-controls">
+            <button id="restartSeqBtn" title="Restart Sequence">🔄</button>
+            <button id="playBtn" title="Play Full Solution">▶ Play</button>
+        </div>
     </div>
     <div class="step-controls-row dynamic-control" id="stepControlsRow">
         <button id="prevBtn" title="Step Backward">⏮</button>
-        <div id="solutionList" class="solution-list"></div>
+        <div style="display: flex; flex-direction: column; flex-grow: 1;">
+            <div id="solutionList" class="solution-list"></div>
+            <button id="expandBtn" class="expand-list-item">▼ Expand Full List ▼</button>
+        </div>
         <button id="nextBtn" title="Step Forward">⏭</button>
     </div>
-
 </div>
 
 <div class="scene">
@@ -250,8 +683,8 @@
 </div>
 
 <div id="tutorialOverlay" class="tutorial-overlay">
-    <div id="tutorialArrow" class="tutorial-arrow" style="display: none;">↓</div>
-    <div id="tutorialBubble" class="tutorial-bubble" style="display: none;">
+    <div id="tutorialArrow" class="tutorial-arrow">↓</div>
+    <div id="tutorialBubble" class="tutorial-bubble">
         <div id="tutorialText"></div>
         <div class="tutorial-actions">
             <button id="tutorialNext">Next</button>
@@ -270,12 +703,14 @@
     const btnIncrease = document.getElementById('btnIncreaseBlocks');
     const prevBtn = document.getElementById('prevBtn');
     const playBtn = document.getElementById('playBtn');
+    const restartSeqBtn = document.getElementById('restartSeqBtn');
     const nextBtn = document.getElementById('nextBtn');
     const stepControlsRow = document.getElementById('stepControlsRow');
     const squashLabel = document.getElementById('squashLabel');
     const squashMovesCheck = document.getElementById('squashMovesCheck');
     const statusMsg = document.getElementById('statusMsg');
     const solutionList = document.getElementById('solutionList');
+    const expandBtn = document.getElementById('expandBtn');
 
     const pinRaised = -10;
     const pinMiddle = -5;
@@ -305,6 +740,7 @@
         isMobile: 768 >= window.innerWidth,
         lastTouchTime: 0,
         lastAction: null,
+        isHovering: false
     };
 
     const pinchState = {
@@ -312,9 +748,7 @@
         initialScale: 1
     };
 
-    if (gameState.isMobile) {
-        squashMovesCheck.checked = false;
-    }
+    if (gameState.isMobile) squashMovesCheck.checked = false;
 
     function setStatus(text, type = 'info') {
         statusMsg.textContent = text;
@@ -332,14 +766,15 @@
         currentStepIndex = 0;
         isPlaying = false;
         playBtn.style.display = 'none';
+        playBtn.textContent = '▶ Play';
+        restartSeqBtn.style.display = 'none';
         stepControlsRow.classList.remove('show-stretch');
         squashLabel.classList.remove('show-stretch');
-        solutionList.innerHTML = '';
         setStatus("", "info");
         solveBtn.disabled = false;
-        gameState.blocks.forEach(b => {
-            b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse');
-        });
+        gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
+        solutionList.innerHTML = '';
+        if (solutionList.classList.contains('is-expanded')) toggleExpandList(false);
     }
 
     function createSolverWorker() {
@@ -526,12 +961,10 @@
 
     function solveInWorker() {
         if (undefined === window.Worker) return Promise.reject(new Error("Web Workers are not supported."));
-
         const setup = compactSetup();
         const payload = {n: setup.n, start: setup.start, effects: setup.effects, mode: "fewer-switches-fast", timeoutMs: SOLVE_TIMEOUT_MS};
         return new Promise((resolve, reject) => {
             const worker = createSolverWorker();
-
             const hardTimeout = setTimeout(() => {
                 worker.terminate();
                 worker.releaseUrl();
@@ -562,17 +995,14 @@
     function applySingleMove(move, reverse = false) {
         const primaryBlock = gameState.blocks[move.plate - 1];
         let stepShift = ("left" === move.direction) ? -HOLE_SPACING : HOLE_SPACING;
-
-        if (true === reverse) {
-            stepShift *= -1;
-        }
+        if (true === reverse) stepShift *= -1;
 
         let draggedBlockPolarity = primaryBlock.group[primaryBlock.id] || 1;
-
         Object.keys(primaryBlock.group).forEach(idStr => {
             const id = parseInt(idStr);
             const relativeDir = (primaryBlock.group[id] * draggedBlockPolarity);
             const b = gameState.blocks.find(x => x.id === id);
+
             if (b) {
                 let newX = b.x + (stepShift * relativeDir);
                 const maxBound = 3 * HOLE_SPACING;
@@ -581,11 +1011,10 @@
                 b.x = newX;
                 b.el.style.transition = 'transform 0.2s ease-out';
                 b.el.style.transform = `translateZ(${b.z}px) translateX(${newX}px)`;
-                if (b.pinWrapper && b.pin) {
 
+                if (b.pinWrapper && b.pin) {
                     b.pinWrapper.style.transition = 'transform 0.2s ease-out';
                     b.pinWrapper.style.transform = `translateX(${-newX}px)`;
-
                     b.pin.style.transition = 'transform 0.05s ease-in';
                     b.pin.style.transform = `translateZ(${pinUnder}px)`;
 
@@ -600,29 +1029,29 @@
 
     function updatePlaybackUI() {
         if (null === currentSolution) return;
-
         prevBtn.disabled = (0 === currentStepIndex) || isPlaying;
         nextBtn.disabled = (currentStepIndex === currentSolution.length) || isPlaying;
-        playBtn.disabled = (currentStepIndex === currentSolution.length) || isPlaying;
+        playBtn.disabled = (currentStepIndex === currentSolution.length);
+        restartSeqBtn.disabled = isPlaying;
         solveBtn.disabled = isPlaying;
 
         Array.from(solutionList.children).forEach(el => el.classList.remove('active-step'));
-
-        gameState.blocks.forEach(b => {
-            b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse');
-        });
+        gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
 
         if (currentStepIndex < currentSolution.length) {
             let activeDomIndex = moveMap[currentStepIndex];
             if (undefined !== activeDomIndex && solutionList.children[activeDomIndex]) {
                 let activeEl = solutionList.children[activeDomIndex];
                 activeEl.classList.add('active-step');
-                activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+                if (0 === currentStepIndex) {
+                    solutionList.scrollTop = 0;
+                } else {
+                    activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+                }
             }
 
             const nextMove = currentSolution[currentStepIndex];
             const activeBlock = gameState.blocks.find(b => b.id === nextMove.plate);
-
             if (activeBlock) {
                 if ('right' === nextMove.direction) {
                     activeBlock.el.classList.add('linked-highlight');
@@ -630,11 +1059,11 @@
                     activeBlock.el.classList.add('linked-highlight-reverse');
                 }
             }
-
         } else if (0 < currentSolution.length) {
             let lastDomIndex = moveMap[currentSolution.length - 1];
             if (undefined !== lastDomIndex && solutionList.children[lastDomIndex]) {
                 solutionList.children[lastDomIndex].classList.add('active-step');
+                solutionList.children[lastDomIndex].scrollIntoView({behavior: 'smooth', block: 'nearest'});
             }
         }
     }
@@ -669,9 +1098,7 @@
             const step = document.createElement('div');
             const icon = 'left' === m.direction ? '←' : '→';
             let text = `${index + 1}. Block ${m.plate} ${icon} ${m.direction.toUpperCase()}`;
-            if (1 < m.count) {
-                text += ` (x${m.count})`;
-            }
+            if (1 < m.count) text += ` (x${m.count})`;
             step.textContent = text;
             solutionList.appendChild(step);
         });
@@ -704,6 +1131,7 @@
                 currentStepIndex = 0;
                 setStatus(`Solution found: ${result.moves.length} moves!`, "success");
                 playBtn.style.display = 'block';
+                restartSeqBtn.style.display = 'block';
                 stepControlsRow.classList.add('show-stretch');
                 squashLabel.classList.add('show-stretch');
                 renderSolutionList();
@@ -731,20 +1159,42 @@
     });
 
     playBtn.addEventListener('click', async () => {
-        if (null === currentSolution || currentStepIndex >= currentSolution.length || true === isPlaying) return;
-
+        if (null === currentSolution || currentStepIndex >= currentSolution.length) return;
+        if (isPlaying) {
+            isPlaying = false;
+            playBtn.textContent = '▶ Play';
+            setStatus("Paused sequence.", "info");
+            return;
+        }
         isPlaying = true;
+        playBtn.textContent = '⏸ Pause';
         setStatus("Playing sequence...", "info");
         updatePlaybackUI();
 
-        while (currentStepIndex < currentSolution.length && true === isPlaying) {
+        while (currentStepIndex < currentSolution.length && isPlaying) {
             applySingleMove(currentSolution[currentStepIndex], false);
             currentStepIndex++;
             updatePlaybackUI();
             await sleep(300);
         }
+
         isPlaying = false;
-        setStatus("Sequence complete!", "success");
+        if (currentStepIndex >= currentSolution.length) {
+            playBtn.textContent = '▶ Play';
+            setStatus("Sequence complete!", "success");
+        }
+        updatePlaybackUI();
+    });
+
+    restartSeqBtn.addEventListener('click', () => {
+        if (null === currentSolution || isPlaying) return;
+        setStatus("Restarting sequence...", "info");
+        while (currentStepIndex > 0) {
+            applySingleMove(currentSolution[currentStepIndex - 1], true);
+            currentStepIndex--;
+        }
+        playBtn.textContent = '▶ Play';
+        setStatus(`Solution found: ${currentSolution.length} moves!`, "success");
         updatePlaybackUI();
     });
 
@@ -753,31 +1203,21 @@
         document.documentElement.style.setProperty('--block-scale', initialScale);
         sizeInput.value = initialScale;
     }
+
     setInitialScale();
 
-
     function triggerGamepadRumble(durationInMs) {
-
-        if (!navigator.getGamepads) {
-            return;
-        }
-
+        if (!navigator.getGamepads) return;
         const gamepads = navigator.getGamepads();
-
         for (let gamepad of gamepads) {
-            // Check 2 & 3: Does the controller exist, have actuators, and support playEffect?
             if (gamepad && gamepad.vibrationActuator && typeof gamepad.vibrationActuator.playEffect === 'function') {
-
-                // All feature detections passed, safe to vibrate
                 gamepad.vibrationActuator.playEffect("dual-rumble", {
                     startDelay: 0,
                     duration: durationInMs,
-                    weakMagnitude: 1.0,  // Fast, sharp clicking motor
-                    strongMagnitude: 0.0 // Keep the heavy, booming motor off
-                }).catch(error => {
-                });
-
-                break; // Stop after finding the first valid controller
+                    weakMagnitude: 1.0,
+                    strongMagnitude: 0.0
+                }).catch(error => {});
+                break;
             }
         }
     }
@@ -787,24 +1227,23 @@
         let distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING));
         let isOverAnyHole = 3 > distanceToHole;
         let isCorrectHole = (0 === holeIndex);
-
         let wasOverHole = pin.dataset.wasOverHole === 'true';
+
         if (isOverAnyHole && !wasOverHole) {
             if (navigator.vibrate) navigator.vibrate(15);
             triggerGamepadRumble(60);
         }
+
         pin.dataset.wasOverHole = isOverAnyHole;
 
         if (false === isOverAnyHole) {
             pin.style.transform = `translateZ(${pinUnder}px)`;
             return;
         }
-
         if (true === isCorrectHole) {
             pin.style.transform = `translateZ(${pinRaised}px)`;
             return;
         }
-
         if (true === isOverAnyHole) {
             pin.style.transform = `translateZ(${pinMiddle}px)`;
             return;
@@ -820,21 +1259,13 @@
     }
 
     function updateHoverPreview(plate) {
-
         if (gameState.activeLinkerId || currentSolution) return;
-
-        if (gameState.activeLinkerId) return;
-
         clearHoverPreview(true);
-
         if (!plate) return;
 
         const hoveredBlock = gameState.blocks.find(b => b.el === plate);
         if (!hoveredBlock) return;
-
         plate.classList.add('is-touched');
-
-        // IMPORTANT: Set this to true AFTER clearing, so it can be cleaned up later
         gameState.isHovering = true;
 
         const groupIds = Object.keys(hoveredBlock.group);
@@ -850,21 +1281,12 @@
     }
 
     function clearHoverPreview(isEndHovering) {
-
         if (gameState.activeLinkerId || currentSolution) return;
-
-        if (gameState.activeLinkerId) {
-            return;
-        }
-
         if (gameState.lastAction === 'deselect') {
             gameState.lastAction === 'deselectDragEnd';
             return;
         }
-
-        if (!gameState.isHovering && !isEndHovering) {
-            return;
-        }
+        if (!gameState.isHovering && !isEndHovering) return;
 
         document.querySelectorAll('.linked-highlight, .linked-highlight-reverse, .is-touched').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
         gameState.isHovering = false;
@@ -875,6 +1297,7 @@
         const centerOffset = (count - 1) / 2;
         const spacing = gameState.isMobile ? 55 : 50;
         const oldBlocks = new Map(gameState.blocks.map(b => [b.id, b]));
+
         gameState.blocks = [];
         gameState.activeLinkerId = null;
 
@@ -885,6 +1308,7 @@
             const plate = document.createElement('div');
             plate.className = 'plate glow';
             plate.dataset.id = id;
+
             plate.addEventListener('mouseenter', () => {
                 //Ghost touch
                 if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
@@ -892,8 +1316,8 @@
             });
             plate.addEventListener('mouseleave', () => clearHoverPreview(true));
             plate.addEventListener('touchstart', () => clearHoverPreview(true), {passive: true});
-            let holesHtml = '';
 
+            let holesHtml = '';
             for (let h = 0; h < 7; h++) {
                 if (3 === h) {
                     holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${pinRaised}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
@@ -904,9 +1328,12 @@
 
             let tubeHtml = '';
             const corners = [
-                {class: 'tube-tr', startAngle: 0}, {class: 'tube-br', startAngle: 90},
-                {class: 'tube-bl', startAngle: 180}, {class: 'tube-tl', startAngle: 270}
+                {class: 'tube-tr', startAngle: 0},
+                {class: 'tube-br', startAngle: 90},
+                {class: 'tube-bl', startAngle: 180},
+                {class: 'tube-tl', startAngle: 270}
             ];
+
             corners.forEach(corner => {
                 tubeHtml += `<div class="corner-tube ${corner.class}">`;
                 for (let a = 7.5; a < 90; a += 15) {
@@ -916,17 +1343,31 @@
                 tubeHtml += '</div>';
             });
 
-            plate.innerHTML = ` <div class="front-face"></div> <div class="top-face">${holesHtml}</div> <div class="right-face"></div> <div class="bottom-face"></div> <div class="left-face"></div> ${tubeHtml} `;
+            plate.innerHTML = `
+                    <div class="front-face"></div>
+                    <div class="top-face">${holesHtml}</div>
+                    <div class="right-face"></div>
+                    <div class="bottom-face"></div>
+                    <div class="left-face"></div>
+                    ${tubeHtml}
+                `;
+
             plate.style.transform = `translateZ(${zPos}px) translateX(${prevX}px)`;
             lock.prepend(plate);
 
             gameState.blocks.push({
-                id: id, x: prevX, z: zPos, el: plate,
+                id: id,
+                x: prevX,
+                z: zPos,
+                el: plate,
                 pinWrapper: plate.querySelector('.pin-wrapper'),
                 pin: plate.querySelector('.pin'),
                 group: {[id]: 1}
             });
-            if (plate.querySelector('.pin')) updatePinState(plate.querySelector('.pin'), prevX);
+
+            if (plate.querySelector('.pin')) {
+                updatePinState(plate.querySelector('.pin'), prevX);
+            }
         }
 
         gameState.blocks.forEach(block => {
@@ -945,10 +1386,7 @@
         });
     }
 
-    sizeInput.addEventListener('input', (e) => {
-        document.documentElement.style.setProperty('--block-scale', e.target.value);
-    });
-
+    sizeInput.addEventListener('input', (e) => document.documentElement.style.setProperty('--block-scale', e.target.value));
     countInput.addEventListener('input', (e) => {
         let count = parseInt(e.target.value);
         if (0 < count && 50 >= count) renderBlocks(count);
@@ -970,6 +1408,53 @@
             countInput.value = currentValue + 1;
             countInput.dispatchEvent(new Event('input'));
         }
+    });
+
+    function toggleExpandList(forceState) {
+        const isExpanded = forceState !== undefined ? forceState : solutionList.classList.toggle('is-expanded');
+        if (forceState !== undefined) solutionList.classList.toggle('is-expanded', forceState);
+        const parentRow = document.getElementById('stepControlsRow');
+        if (parentRow) parentRow.classList.toggle('is-expanded-parent', isExpanded);
+        expandBtn.textContent = isExpanded ? '▲ Collapse List ▲' : '▼ Expand Full List ▼';
+
+        if (isExpanded) {
+            const rect = solutionList.getBoundingClientRect();
+            const bottomPadding = window.innerHeight * 0.05;
+            const availableHeight = window.innerHeight - rect.top - bottomPadding - 45;
+            solutionList.style.height = `${availableHeight}px`;
+            solutionList.style.maxHeight = `${availableHeight}px`;
+
+            setTimeout(() => {
+                solutionList.style.scrollBehavior = 'auto';
+                if (currentStepIndex === 0) {
+                    solutionList.scrollTop = 0;
+                } else {
+                    const activeStep = solutionList.querySelector('.active-step');
+                    if (activeStep) activeStep.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+                }
+                setTimeout(() => solutionList.style.scrollBehavior = 'smooth', 50);
+            }, 310);
+        } else {
+            solutionList.style.height = '';
+            solutionList.style.maxHeight = '';
+            setTimeout(() => {
+                solutionList.style.scrollBehavior = 'auto';
+                if (currentStepIndex === 0) {
+                    solutionList.scrollTop = 0;
+                } else {
+                    const activeStep = solutionList.querySelector('.active-step');
+                    if (activeStep) activeStep.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+                }
+                setTimeout(() => solutionList.style.scrollBehavior = 'smooth', 50);
+            }, 310);
+        }
+    }
+
+    expandBtn.addEventListener('click', () => toggleExpandList());
+
+    squashMovesCheck.addEventListener('change', () => {
+        renderSolutionList();
+        if (solutionList.classList.contains('is-expanded')) toggleExpandList(true);
     });
 
     resetBtn.addEventListener('click', () => {
@@ -997,9 +1482,9 @@
                 if (!curBlock) return;
 
                 if (null === gameState.activeLinkerId) {
-
                     gameState.activeLinkerId = curBlock.id;
                     gameState.dragState.activePlate.classList.add('selected');
+
                     Object.keys(curBlock.group).forEach(idStr => {
                         let id = parseInt(idStr);
                         if (id !== curBlock.id) {
@@ -1010,15 +1495,16 @@
                             }
                         }
                     });
+
                     if (navigator.vibrate) navigator.vibrate(50);
-                    triggerGamepadRumble(60)
+                    triggerGamepadRumble(60);
                 } else if (gameState.activeLinkerId === curBlock.id) {
                     gameState.activeLinkerId = null;
                     gameState.dragState.activePlate.classList.remove('selected');
                     gameState.lastAction = 'deselect';
                     updateHoverPreview(gameState.dragState.activePlate)
                     if (navigator.vibrate) navigator.vibrate(50);
-                    triggerGamepadRumble(60)
+                    triggerGamepadRumble(60);
                 } else {
                     let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
                     if (masterBlock.group[curBlock.id]) {
@@ -1026,7 +1512,6 @@
                             masterBlock.group[curBlock.id] = -1;
                             gameState.dragState.activePlate.classList.remove('linked-highlight');
                             gameState.dragState.activePlate.classList.add('linked-highlight-reverse');
-
                         } else if (-1 === masterBlock.group[curBlock.id]) {
                             delete masterBlock.group[curBlock.id];
                             curBlock.group = {[curBlock.id]: 1};
@@ -1037,26 +1522,21 @@
                         gameState.dragState.activePlate.classList.add('linked-highlight');
                     }
                     if (navigator.vibrate) navigator.vibrate(50);
-                    triggerGamepadRumble(60)
+                    triggerGamepadRumble(60);
                 }
             }
         }, gameState.activeLinkerId ? SHORT_PRESS_DURATION : LONG_PRESS_DURATION);
     }
 
     function handleDragStart(e) {
-
         if (e.touches) gameState.lastTouchTime = Date.now();
 
         if (e.touches && e.touches.length >= 2) {
             document.body.classList.add('is-zooming');
-
-            pinchState.initialDistance = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
+            pinchState.initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
-
             clearTimeout(gameState.dragState.longPressTimer);
+
             if (gameState.dragState.activePlate) {
                 gameState.dragState.movingGroup.forEach(item => {
                     item.block.x = item.initialX;
@@ -1066,13 +1546,11 @@
                         updatePinState(item.block.pin, item.initialX);
                     }
                 });
-
                 clearHoverPreview(true);
                 gameState.dragState.activePlate = null;
                 gameState.dragState.movingGroup = [];
                 gameState.dragState.isDragging = false;
             }
-
             return;
         }
 
@@ -1080,14 +1558,11 @@
         if (!clickedPlate) return;
 
         gameState.dragState.hasMoved = false;
-        if (e.type === 'mousedown') {
-            e.preventDefault();
-        }
-
+        if (e.type === 'mousedown') e.preventDefault();
         if (currentSolution) clearSolutionUI();
 
         gameState.dragState.activePlate = clickedPlate;
-        updateHoverPreview(gameState.dragState.activePlate)
+        updateHoverPreview(gameState.dragState.activePlate);
         gameState.dragState.startInputX = getClientX(e);
         gameState.dragState.isDragging = false;
         const clickedId = parseInt(clickedPlate.dataset.id);
@@ -1109,46 +1584,30 @@
             }
         });
 
-        gameState.lastAction = 'handleDragStart'
-
+        gameState.lastAction = 'handleDragStart';
         longPress(clickedId);
     }
 
     function handleDragMove(e) {
-
         if (e.touches && e.touches.length === 2) {
-            e.preventDefault(); // Prevent the browser from zooming the entire page
-
-            // Failsafe in case the user drops a second finger mid-drag
+            e.preventDefault();
             if (!pinchState.initialDistance) {
-                pinchState.initialDistance = Math.hypot(
-                    e.touches[0].clientX - e.touches[1].clientX,
-                    e.touches[0].clientY - e.touches[1].clientY
-                );
+                pinchState.initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
             }
-
-            const currentDistance = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
-
+            const currentDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             let newScale = pinchState.initialScale * (currentDistance / pinchState.initialDistance);
-
             if (newScale < 0.3) newScale = 0.3;
             if (newScale > 2) newScale = 2;
-
             document.documentElement.style.setProperty('--block-scale', newScale);
             sizeInput.value = newScale;
             return;
         }
 
-
         if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length) return;
-
         gameState.dragState.hasMoved = true;
-
         let clientX = getClientX(e);
+
         if (Math.abs(clientX - gameState.dragState.startInputX) > DRAG_THRESHOLD) {
             gameState.dragState.isDragging = true;
             clearTimeout(gameState.dragState.longPressTimer);
@@ -1162,7 +1621,6 @@
         gameState.dragState.movingGroup.forEach(item => {
             let limitLeft = 1 === item.dir ? -120 - item.initialX : item.initialX - 120;
             let limitRight = 1 === item.dir ? 120 - item.initialX : item.initialX + 120;
-
             if (limitLeft > minDeltaX) minDeltaX = limitLeft;
             if (limitRight < maxDeltaX) maxDeltaX = limitRight;
         });
@@ -1181,17 +1639,14 @@
             }
         });
 
-        gameState.lastAction = 'handleDragMove'
+        gameState.lastAction = 'handleDragMove';
     }
 
     function handleDragEnd(e) {
-
         if (e && e.changedTouches) gameState.lastTouchTime = Date.now();
-
         if (!e || !e.touches || e.touches.length < 2) {
             document.body.classList.remove('is-zooming');
         }
-
         pinchState.initialDistance = 0;
         clearTimeout(gameState.dragState.longPressTimer);
 
@@ -1206,6 +1661,7 @@
             let holeIndex = Math.round(currentX / HOLE_SPACING);
             let snappedX = holeIndex * HOLE_SPACING;
             let snapDelta = snappedX - currentX;
+
             let maxAllowedShiftRight = Infinity;
             let maxAllowedShiftLeft = -Infinity;
 
@@ -1226,6 +1682,7 @@
                 item.block.x = finalX;
                 item.block.el.style.transition = 'transform 0.2s ease-out';
                 item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${finalX}px)`;
+
                 if (item.block.pinWrapper && item.block.pin) {
                     item.block.pinWrapper.style.transition = 'transform 0.2s ease-out';
                     item.block.pinWrapper.style.transform = `translateX(${-finalX}px)`;
@@ -1234,20 +1691,14 @@
             });
         }
 
-
         gameState.dragState.activePlate = null;
         gameState.dragState.movingGroup = [];
-        gameState.lastAction = gameState.lastAction === 'deselectDragEnd' ?  gameState.lastAction : 'handleDragEnd'
+        gameState.lastAction = gameState.lastAction === 'deselectDragEnd' ? gameState.lastAction : 'handleDragEnd';
 
         if (e && 'mouseup' === e.type) {
-
-            //Ghost touch
-            if ((Date.now() - (gameState.lastTouchTime || 0) < 500)  || gameState.lastAction === 'deselectDragEnd') return;
-
+            if ((Date.now() - (gameState.lastTouchTime || 0) < 500) || gameState.lastAction === 'deselectDragEnd') return;
             const elementUnderCursor = document.elementFromPoint(e.clientX, e.clientY);
-
             const plateUnderCursor = elementUnderCursor ? elementUnderCursor.closest('.plate') : null;
-
             if (plateUnderCursor) {
                 updateHoverPreview(plateUnderCursor);
             }
@@ -1263,7 +1714,6 @@
     document.addEventListener('touchcancel', handleDragEnd);
 </script>
 </body>
-
 <style>
 
     .box40 {
