@@ -653,6 +653,27 @@
                 font-size: 14px;
             }
         }
+
+        #nextBtn, #prevBtn {
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        #nextBtn::after, #prevBtn::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; bottom: 0; width: 0%;
+            background: rgba(255, 255, 255, 0.4);
+            z-index: -1;
+            transition: width 0s linear; /* Snaps back instantly when released */
+        }
+
+        #nextBtn.is-pressing::after, #prevBtn.is-pressing::after {
+            width: 100%;
+            transition: width 0.45s linear;
+        }
+
     </style>
 </head>
 <body>
@@ -1043,8 +1064,6 @@
 
     function jumpToStep(targetIndex) {
 
-        console.log(targetIndex);
-
         targetIndex = targetIndex - 1;
 
         if (null === currentSolution || isPlaying) return;
@@ -1252,20 +1271,6 @@
             solveBtn.textContent = "Solve Lock";
             if (!isPlaying) solveBtn.disabled = false;
         }
-    });
-
-    nextBtn.addEventListener('click', () => {
-        if (null === currentSolution || true === isPlaying || currentStepIndex >= currentSolution.length) return;
-        applySingleMove(currentSolution[currentStepIndex], false);
-        currentStepIndex++;
-        updatePlaybackUI();
-    });
-
-    prevBtn.addEventListener('click', () => {
-        if (null === currentSolution || true === isPlaying || 0 >= currentStepIndex) return;
-        applySingleMove(currentSolution[currentStepIndex - 1], true);
-        currentStepIndex--;
-        updatePlaybackUI();
     });
 
     playBtn.addEventListener('click', async () => {
@@ -1815,6 +1820,124 @@
         }
     }
 
+    function getNextSquashedIndex() {
+        if (null === currentSolution || currentStepIndex >= currentSolution.length) return currentStepIndex;
+
+        const currentMove = currentSolution[currentStepIndex];
+        let nextIdx = currentStepIndex + 1;
+
+        while (nextIdx < currentSolution.length) {
+            const move = currentSolution[nextIdx];
+            if (move.plate === currentMove.plate && move.direction === currentMove.direction) {
+                nextIdx++;
+            } else break;
+        }
+        return nextIdx + 1;
+    }
+
+    function getPrevSquashedIndex() {
+        if (null === currentSolution || currentStepIndex <= 0) return currentStepIndex;
+
+        const currentMove = currentSolution[currentStepIndex - 1];
+        let prevIdx = currentStepIndex - 1;
+
+        while (prevIdx > 0) {
+            const move = currentSolution[prevIdx - 1];
+            if (move.plate === currentMove.plate && move.direction === currentMove.direction) {
+                prevIdx--;
+            } else break;
+        }
+
+        return prevIdx + 1;
+    }
+
+    // ==========================================
+    // 2. UNIFIED STEPPING LOGIC
+    // ==========================================
+
+    function stepForward(forceSquash = false) {
+        if (null === currentSolution || isPlaying || currentStepIndex >= currentSolution.length) return;
+
+        if (squashMovesCheck.checked || forceSquash) {
+            const targetIdx = getNextSquashedIndex();
+            jumpToStep(targetIdx);
+        } else {
+            applySingleMove(currentSolution[currentStepIndex], false);
+            currentStepIndex++;
+            updatePlaybackUI();
+        }
+    }
+
+    function stepBackward(forceSquash = false) {
+        if (null === currentSolution || isPlaying || currentStepIndex <= 0) return;
+
+        if (squashMovesCheck.checked || forceSquash) {
+            const targetIdx = getPrevSquashedIndex();
+            jumpToStep(targetIdx);
+        } else {
+            currentStepIndex--;
+            applySingleMove(currentSolution[currentStepIndex], true);
+            updatePlaybackUI();
+        }
+    }
+
+    // ==========================================
+    // 3. MOBILE-ONLY LONG PRESS HANDLER
+    // ==========================================
+    function setupLongPress(button, stepFunction) {
+        let pressTimer;
+        let animTimer;
+        let isLongPressExecuted = false;
+
+        const startPress = (e) => {
+            // STRICT CHECK: Ignore on Desktop (desktop relies entirely on the Squash Checkbox + Clicks)
+            if (!gameState.isMobile) return;
+
+            if (null === currentSolution || isPlaying) return;
+
+            isLongPressExecuted = false;
+
+            // BUG FIX: Wait 150ms before visually starting the animation.
+            // If the user taps quickly, the touch will end before this fires, preventing the flash bug.
+            animTimer = setTimeout(() => {
+                button.classList.add('is-pressing');
+            }, 150);
+
+            // Execute the actual squash skip after 600ms (150ms wait + 450ms animation)
+            pressTimer = setTimeout(() => {
+                button.classList.remove('is-pressing');
+                isLongPressExecuted = true;
+
+                stepFunction(true); // Execute the squash step
+
+                if (navigator.vibrate) navigator.vibrate(50);
+            }, 600);
+        };
+
+        const clearPress = () => {
+            clearTimeout(animTimer);
+            clearTimeout(pressTimer);
+            button.classList.remove('is-pressing');
+        };
+
+        // Attach to TOUCH events only. Mouse drags/clicks won't trigger this on desktop.
+        button.addEventListener('touchstart', startPress, {passive: true});
+        button.addEventListener('touchend', clearPress);
+        button.addEventListener('touchcancel', clearPress);
+
+        // Standard Click event (Works for Desktop, and Mobile Quick Taps)
+        button.addEventListener('click', (e) => {
+            if (isLongPressExecuted) {
+                e.preventDefault(); // Block standard click if long press already triggered
+                return;
+            }
+            stepFunction(false); // Execute a standard 1-move step
+        });
+    }
+
+    setupLongPress(nextBtn, stepForward);
+    setupLongPress(prevBtn, stepBackward);
+
     document.addEventListener('mousedown', handleDragStart);
     document.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
@@ -2247,8 +2370,6 @@
             tutorialNext.textContent = "Finish";
 
             while (version === currentTutorialVersion) {
-
-                console.log(1)
 
                 resetBtn.click();
                 await sleep(400);
