@@ -305,6 +305,10 @@
             box-sizing: border-box;
         }
 
+        .solution-list div:hover:not(.active-step) {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
         .expand-list-item {
             display: block;
             width: 100%;
@@ -563,10 +567,6 @@
 
         }
 
-        .solution-list div:hover:not(.active-step) {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
         /* --- UNIVERSAL JS/TOUCH HIGHLIGHT STATES --- */
         .plate.is-touched:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow) .front-face {
             border-color: rgba(255, 255, 255, 0.9);
@@ -577,12 +577,6 @@
             border-color: #d4d137;
             box-shadow: inset 0 0 20px rgba(212, 209, 55, 0.3), 0 0 15px rgba(212, 204, 55, 0.5);
             transition: border-color 0.05s, box-shadow 0.05s;
-        }
-
-        /* Extracted Tutorial Styles */
-        #tutorialArrow,
-        #tutorialBubble {
-            display: none;
         }
 
         /* --- CONSOLIDATED MOBILE LAYOUT --- */
@@ -1782,6 +1776,11 @@
         width: 40px;
         height: 40px;
         margin: 5px;
+    }
+
+    #tutorialArrow,
+    #tutorialBubble {
+        display: none;
     }
 
     .tutorial-overlay {
