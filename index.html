@@ -624,7 +624,7 @@
             const activeBlock = gameState.blocks.find(b => b.id === nextMove.plate);
 
             if (activeBlock) {
-                if (nextMove.direction === 'right') {
+                if ('right' === nextMove.direction) {
                     activeBlock.el.classList.add('linked-highlight');
                 } else {
                     activeBlock.el.classList.add('linked-highlight-reverse');
