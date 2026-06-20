@@ -297,6 +297,14 @@
             font-weight: bold;
         }
 
+        .solution-list div {
+            padding: 4px 5px;
+            border-bottom: 1px solid #333;
+            transition: background 0.2s, color 0.2s;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
         .expand-list-item {
             display: block;
             width: 100%;
@@ -552,6 +560,11 @@
                 border-color: #d4d137;
                 box-shadow: inset 0 0 20px rgba(212, 209, 55, 0.3), 0 0 15px rgba(212, 204, 55, 0.5);
             }
+
+        }
+
+        .solution-list div:hover:not(.active-step) {
+            background: rgba(255, 255, 255, 0.1);
         }
 
         /* --- UNIVERSAL JS/TOUCH HIGHLIGHT STATES --- */
@@ -664,7 +677,7 @@
     <div class="play-status-row dynamic-control">
         <div id="statusMsg" class="status-message"></div>
         <div class="playback-controls">
-            <button id="restartSeqBtn" title="Restart Sequence">🔄</button>
+            <button id="restartSeqBtn" title="Restart Sequence">&#171;</button>
             <button id="playBtn" title="Play Full Solution">▶ Play</button>
         </div>
     </div>
@@ -1027,6 +1040,27 @@
         });
     }
 
+    function jumpToStep(targetIndex) {
+
+        console.log(targetIndex);
+
+        targetIndex = targetIndex - 1;
+
+        if (null === currentSolution || isPlaying) return;
+
+        while (currentStepIndex < targetIndex) {
+            applySingleMove(currentSolution[currentStepIndex], false);
+            currentStepIndex++;
+        }
+
+        while (currentStepIndex > targetIndex) {
+            applySingleMove(currentSolution[currentStepIndex - 1], true);
+            currentStepIndex--;
+        }
+
+        updatePlaybackUI();
+    }
+
     function updatePlaybackUI() {
         if (null === currentSolution) return;
         prevBtn.disabled = (0 === currentStepIndex) || isPlaying;
@@ -1080,16 +1114,17 @@
                 let last = movesToRender[movesToRender.length - 1];
                 if (last && last.plate === m.plate && last.direction === m.direction) {
                     last.count++;
+                    last.targetIndex = i + 1; // Points to the state AFTER this sequence finishes
                     moveMap[i] = domIndex - 1;
                 } else {
-                    movesToRender.push({...m, count: 1});
+                    movesToRender.push({...m, count: 1, targetIndex: i + 1});
                     moveMap[i] = domIndex;
                     domIndex++;
                 }
             });
         } else {
             currentSolution.forEach((m, i) => {
-                movesToRender.push({...m, count: 1});
+                movesToRender.push({...m, count: 1, targetIndex: i + 1});
                 moveMap[i] = i;
             });
         }
@@ -1099,9 +1134,17 @@
             const icon = 'left' === m.direction ? '←' : '→';
             let text = `${index + 1}. Block ${m.plate} ${icon} ${m.direction.toUpperCase()}`;
             if (1 < m.count) text += ` (x${m.count})`;
+
             step.textContent = text;
+            step.style.cursor = 'pointer'; // UI hint that it's clickable
+
+            step.addEventListener('click', () => {
+                jumpToStep(m.targetIndex);
+            });
+
             solutionList.appendChild(step);
         });
+
         updatePlaybackUI();
     }
 
