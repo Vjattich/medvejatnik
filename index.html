@@ -458,6 +458,12 @@
             z-index: 1;
         }
 
+        .hole.glow-white {
+            background-color: #fff;
+            box-shadow: 0 0 10px 3px rgba(255, 255, 255, 0.8), inset 2px 2px 4px rgb(255 255 255 / 0.3);
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
         .pin-hole { z-index: 5; }
 
         .pin-wrapper {
@@ -780,6 +786,7 @@
         setStatus("", "info");
         solveBtn.disabled = false;
         gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
+        document.querySelectorAll('.hole.glow-white').forEach(h => h.classList.remove('glow-white'));
         solutionList.innerHTML = '';
         if (solutionList.classList.contains('is-expanded')) toggleExpandList(false);
     }
@@ -1080,14 +1087,80 @@
 
             const nextMove = currentSolution[currentStepIndex];
             const activeBlock = gameState.blocks.find(b => b.id === nextMove.plate);
+
+            let elementsToGlow = [];
+
             if (activeBlock) {
+
                 if ('right' === nextMove.direction) {
                     activeBlock.el.classList.add('linked-highlight');
                 } else {
                     activeBlock.el.classList.add('linked-highlight-reverse');
                 }
+
+                let moveCount = 0;
+                if(nextMove.count){
+                    moveCount = nextMove.count;
+                }else{
+                    for (let i = currentStepIndex; i < currentSolution.length; i++) {
+                        if (currentSolution[i].plate === nextMove.plate && currentSolution[i].direction === nextMove.direction) {
+                            moveCount++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                let currentHoleOffset = Math.round(activeBlock.x / HOLE_SPACING);
+                let currentPinHole = 3 - currentHoleOffset;
+
+                for (let step = moveCount; step <= moveCount; step++) {
+                    let targetHoleIndex = nextMove.direction === 'right' ? currentPinHole - step : currentPinHole + step;
+
+                    if (targetHoleIndex >= 0 && targetHoleIndex <= 6) {
+                        let holes = activeBlock.el.querySelectorAll('.hole');
+                        if (holes[targetHoleIndex]) {
+                            elementsToGlow.push(holes[targetHoleIndex]);
+                        }
+                    }
+                }
             }
+
+            document.querySelectorAll('.hole.glow-white').forEach(h => {
+                if (!elementsToGlow.includes(h)) {
+                    // If we aren't already waiting to remove this glow, set a timer
+                    if (!h.glowTimeoutId) {
+                        h.glowTimeoutId = setTimeout(() => {
+                            h.classList.remove('glow-white');
+                            h.glowTimeoutId = null;
+                        }, 250);
+                    }
+                }
+            });
+
+            // Apply new glows immediately, and cancel any fading out if a hole is reused
+            elementsToGlow.forEach(h => {
+                // If this hole was about to fade out but we need it again, cancel the fade
+                if (h.glowTimeoutId) {
+                    clearTimeout(h.glowTimeoutId);
+                    h.glowTimeoutId = null;
+                }
+                if (!h.classList.contains('glow-white')) {
+                    h.classList.add('glow-white');
+                }
+            });
+
         } else if (0 < currentSolution.length) {
+            // Playback is finished, clear all glowing holes with the same delay
+            document.querySelectorAll('.hole.glow-white').forEach(h => {
+                if (!h.glowTimeoutId) {
+                    h.glowTimeoutId = setTimeout(() => {
+                        h.classList.remove('glow-white');
+                        h.glowTimeoutId = null;
+                    }, 250);
+                }
+            });
+
             let lastDomIndex = moveMap[currentSolution.length - 1];
             if (undefined !== lastDomIndex && solutionList.children[lastDomIndex]) {
                 solutionList.children[lastDomIndex].classList.add('active-step');
