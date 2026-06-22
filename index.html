@@ -41,7 +41,9 @@
             z-index: 10;
             display: flex;
             flex-direction: column;
-            width: 400px;
+            width: calc(100vw - 40px);
+            max-width: 400px;
+            box-sizing: border-box;
             font-size: 17px;
         }
 
@@ -589,23 +591,23 @@
             display: none;
             flex-direction: row;
             justify-content: space-between;
-            gap: 4px;
             flex: 1;
         }
 
         .inspect-btn {
             flex: 1;
-            height: 30px;
+            min-width: 0;
+            height: 35px;
             background: #333;
             color: #fff;
-            border: 2px solid #444;
+            border: 1px solid #444;
             border-radius: 4px;
             font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            touch-action: none;
-            transition: background 0.1s;
+            white-space: nowrap;
+            margin: 0 1px;
             padding: 0;
+            touch-action: none;
+            box-sizing: border-box;
         }
 
         .disabled-btn {
@@ -648,9 +650,11 @@
 
             .inspector-row {
                 display: flex;
-                flex: 1;
-                gap: 4px;
-                margin-bottom: 0;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                gap: 2px;
+                width: 100%;
             }
 
             body {
@@ -673,8 +677,8 @@
                 bottom: auto;
                 left: 50%;
                 transform: translateX(-50%);
-                width: 90%;
-                max-width: 400px;
+                width: auto;
+                max-width: 90%;
                 padding: 15px;
                 margin: 0;
                 z-index: 100;
@@ -1867,28 +1871,28 @@
             if (i < gameState.blocks.length) {
                 const block = gameState.blocks[i];
                 const groupIds = Object.keys(block.group).sort();
+                let defaultBg = '';
 
                 if (groupIds.length > 1) {
                     const groupSignature = groupIds.join('-');
                     const gColor = assignedColors[groupSignature];
-
                     btn.style.borderColor = gColor;
                     btn.style.color = gColor;
+                    defaultBg = `${gColor}22`;
                 }
+
+                btn.blockEl = block.el;
+                btn.dataset.defaultBg = defaultBg;
 
                 btn.addEventListener('touchstart', (e) => {
                     e.preventDefault();
+                    if (window.currentHoveredBtn && window.currentHoveredBtn !== btn) {
+                        window.currentHoveredBtn.style.background = window.currentHoveredBtn.dataset.defaultBg || '';
+                    }
+                    window.currentHoveredBtn = btn;
                     updateHoverPreview(block.el);
                     btn.style.background = '#555';
                 }, { passive: false });
-
-                const releaseTouch = () => {
-                    clearHoverPreview(true);
-                    btn.style.background = groupIds.length > 1 ? `${assignedColors[groupIds.join('-')]}22` : '';
-                };
-
-                btn.addEventListener('touchend', releaseTouch);
-                btn.addEventListener('touchcancel', releaseTouch);
 
             } else {
                 btn.classList.add('disabled-btn');
@@ -1898,6 +1902,44 @@
             inspectorRow.appendChild(btn);
         }
     }
+
+    window.currentHoveredBtn = null;
+
+    inspectorRow.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        if (target && target.classList.contains('inspect-btn') && !target.classList.contains('disabled-btn')) {
+            if (window.currentHoveredBtn !== target) {
+                if (window.currentHoveredBtn) {
+                    clearHoverPreview(true);
+                    window.currentHoveredBtn.style.background = window.currentHoveredBtn.dataset.defaultBg || '';
+                }
+                window.currentHoveredBtn = target;
+                updateHoverPreview(target.blockEl);
+                target.style.background = '#555';
+            }
+        } else {
+            if (window.currentHoveredBtn) {
+                clearHoverPreview(true);
+                window.currentHoveredBtn.style.background = window.currentHoveredBtn.dataset.defaultBg || '';
+                window.currentHoveredBtn = null;
+            }
+        }
+    }, { passive: false });
+
+    const releaseSlidingTouch = () => {
+        if (window.currentHoveredBtn) {
+            clearHoverPreview(true);
+            window.currentHoveredBtn.style.background = window.currentHoveredBtn.dataset.defaultBg || '';
+            window.currentHoveredBtn = null;
+        }
+    };
+
+    inspectorRow.addEventListener('touchend', releaseSlidingTouch);
+    inspectorRow.addEventListener('touchcancel', releaseSlidingTouch);
 
     setupLongPress(nextBtn, stepForward);
     setupLongPress(prevBtn, stepBackward);
