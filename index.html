@@ -96,8 +96,7 @@
             margin: 0;
         }
 
-        .controls input[type="range"],
-        .controls input[type="number"] {
+        .controls input[type="range"], .controls input[type="number"] {
             cursor: pointer;
             background: #222;
             color: #fff;
@@ -111,8 +110,10 @@
         .number-control {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
             width: 100%;
+            flex-wrap: nowrap;
+            min-width: 0;
         }
 
         .num-btn {
@@ -131,8 +132,7 @@
             padding: 0 !important;
         }
 
-        .num-btn:active,
-        .controls button:active {
+        .num-btn:active, .controls button:active {
             background: #222;
         }
 
@@ -142,8 +142,7 @@
             width: 100%;
         }
 
-        .number-control input[type="number"]::-webkit-inner-spin-button,
-        .number-control input[type="number"]::-webkit-outer-spin-button {
+        .number-control input[type="number"]::-webkit-inner-spin-button, .number-control input[type="number"]::-webkit-outer-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
@@ -219,8 +218,7 @@
             display: flex;
         }
 
-        .play-status-row button,
-        .step-controls-row button {
+        .play-status-row button, .step-controls-row button {
             padding: 6px 15px;
             font-size: 14px;
             background: #66d437;
@@ -466,7 +464,9 @@
             transition: background-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .pin-hole { z-index: 5; }
+        .pin-hole {
+            z-index: 5;
+        }
 
         .pin-wrapper {
             position: absolute;
@@ -492,7 +492,9 @@
             opacity: 0;
         }
 
-        .pin.pin-visible { opacity: 1; }
+        .pin.pin-visible {
+            opacity: 1;
+        }
 
         .pin-cap {
             position: absolute;
@@ -527,7 +529,9 @@
             backface-visibility: hidden;
         }
 
-        .pin.pin-body-visible .pin-body { opacity: 1; }
+        .pin.pin-body-visible .pin-body {
+            opacity: 1;
+        }
 
         /* BASE HIGHLIGHTS */
         .plate.selected .front-face {
@@ -553,15 +557,17 @@
 
         /* --- STRICT MOUSE HOVER STATES (IGNORED BY MOBILE/TOUCH DEVICES) --- */
         @media (hover: hover) {
-            .num-btn:hover,
-            .controls button:hover,
-            #resetBtn:hover {
+            .num-btn:hover, .controls button:hover, #resetBtn:hover {
                 background: #444;
             }
 
-            #solveBtn:hover:not(:disabled) { background: #ffa600; }
-            .play-status-row button:hover:not(:disabled),
-            .step-controls-row button:hover:not(:disabled) { background: #7aef48; }
+            #solveBtn:hover:not(:disabled) {
+                background: #ffa600;
+            }
+
+            .play-status-row button:hover:not(:disabled), .step-controls-row button:hover:not(:disabled) {
+                background: #7aef48;
+            }
 
             .plate.glow:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow):hover .front-face {
                 border-color: rgba(255, 255, 255, 0.9);
@@ -572,7 +578,6 @@
                 border-color: #d4d137;
                 box-shadow: inset 0 0 20px rgba(212, 209, 55, 0.3), 0 0 15px rgba(212, 204, 55, 0.5);
             }
-
         }
 
         /* --- UNIVERSAL JS/TOUCH HIGHLIGHT STATES --- */
@@ -591,11 +596,12 @@
             display: none;
             flex-direction: row;
             justify-content: space-between;
-            flex: 1;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         .inspect-btn {
-            flex: 1;
+            flex: 1 1 0;
             min-width: 0;
             height: 35px;
             background: #333;
@@ -620,7 +626,6 @@
 
         /* --- CONSOLIDATED MOBILE LAYOUT --- */
         @media screen and (max-width: 768px) {
-
             #squashLabel, #scaleLabel, #expandBtn, #blockCountContainer .label-text, #countInput {
                 display: none !important;
             }
@@ -629,22 +634,23 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                gap: 10px;
+                gap: 6px;
                 width: 100%;
+                flex-wrap: nowrap;
+                min-width: 0;
             }
 
             .num-btn {
-                width: 40px;
+                width: 34px;
                 flex-grow: 0;
                 flex-shrink: 0;
                 padding: 0;
                 height: 30px;
             }
 
-            .number-control .num-btn {
-                width: 44px !important;
-                flex: 0 0 44px !important;
-                padding: 0 !important;
+            #blockCountContainer .number-control > .num-btn {
+                width: 34px !important;
+                flex: 0 0 34px !important;
                 height: 30px !important;
             }
 
@@ -653,8 +659,22 @@
                 flex-direction: row;
                 justify-content: space-between;
                 align-items: center;
-                gap: 2px;
-                width: 100%;
+                gap: 1px;
+                flex: 1 1 auto;
+                min-width: 0;
+                width: auto;
+            }
+
+            .inspect-btn {
+                flex: 1 1 0;
+                min-width: 0;
+                height: 30px;
+                font-size: 11px;
+                white-space: nowrap;
+                margin: 0;
+                padding: 0 2px;
+                touch-action: none;
+                box-sizing: border-box;
             }
 
             body {
@@ -713,9 +733,7 @@
                 padding: 0 5px !important;
             }
 
-            .controls button,
-            .controls label:not(.toggle-label),
-            #countInput {
+            .controls button, .controls label:not(.toggle-label), #countInput {
                 font-size: 14px;
             }
         }
@@ -729,7 +747,10 @@
         #nextBtn::after, #prevBtn::after {
             content: '';
             position: absolute;
-            top: 0; left: 0; bottom: 0; width: 0%;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 0%;
             background: rgba(255, 255, 255, 0.4);
             z-index: -1;
             transition: width 0s linear; /* Snaps back instantly when released */
