@@ -963,33 +963,34 @@
 </footer>
 <script src="solver.js"></script>
 <script>
-    const lock = document.getElementById('lock');
-    const sizeInput = document.getElementById('sizeInput');
-    const countInput = document.getElementById('countInput');
-    const resetBtn = document.getElementById('resetBtn');
-    const solveBtn = document.getElementById('solveBtn');
-    const btnDecrease = document.getElementById('btnDecreaseBlocks');
-    const btnIncrease = document.getElementById('btnIncreaseBlocks');
-    const prevBtn = document.getElementById('prevBtn');
-    const playBtn = document.getElementById('playBtn');
-    const restartSeqBtn = document.getElementById('restartSeqBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const stepControlsRow = document.getElementById('stepControlsRow');
-    const squashLabel = document.getElementById('squashLabel');
-    const squashMovesCheck = document.getElementById('squashMovesCheck');
-    const statusMsg = document.getElementById('statusMsg');
-    const solutionList = document.getElementById('solutionList');
-    const expandBtn = document.getElementById('expandBtn');
-    const inspectorRow = document.getElementById('inspectorRow');
-    const pinRaised = -10;
-    const pinMiddle = -5;
-    const pinUnder = 1;
-    const LONG_PRESS_DURATION = 500;
-    const SHORT_PRESS_DURATION = 100;
-    const DRAG_THRESHOLD = 5;
-    const HOLE_SPACING = 36.5;
-    const SOLVE_TIMEOUT_MS = 5000;
-    const MAX_PLATES = 8;
+    const lock = document.getElementById('lock'),
+        sizeInput = document.getElementById('sizeInput'),
+        countInput = document.getElementById('countInput'),
+        resetBtn = document.getElementById('resetBtn'),
+        solveBtn = document.getElementById('solveBtn'),
+        btnDecrease = document.getElementById('btnDecreaseBlocks'),
+        btnIncrease = document.getElementById('btnIncreaseBlocks'),
+        prevBtn = document.getElementById('prevBtn'),
+        playBtn = document.getElementById('playBtn'),
+        restartSeqBtn = document.getElementById('restartSeqBtn'),
+        nextBtn = document.getElementById('nextBtn'),
+        stepControlsRow = document.getElementById('stepControlsRow'),
+        squashLabel = document.getElementById('squashLabel'),
+        squashMovesCheck = document.getElementById('squashMovesCheck'),
+        statusMsg = document.getElementById('statusMsg'),
+        solutionList = document.getElementById('solutionList'),
+        expandBtn = document.getElementById('expandBtn'),
+        inspectorRow = document.getElementById('inspectorRow'),
+        PIN_RAISED = -10,
+        PIN_MIDDLE = -5,
+        PIN_UNDER = 1,
+        LONG_PRESS_DURATION = 500,
+        SHORT_PRESS_DURATION = 100,
+        DRAG_THRESHOLD = 5,
+        HOLE_SPACING = 36.5,
+        SOLVE_TIMEOUT_MS = 5000,
+        MAX_PLATES = 8
+    ;
 
     let currentSolution = null;
     let currentStepIndex = 0;
@@ -1111,7 +1112,7 @@
                     b.pinWrapper.style.transition = 'transform 0.2s ease-out';
                     b.pinWrapper.style.transform = `translateX(${-newX}px)`;
                     b.pin.style.transition = 'transform 0.05s ease-in';
-                    b.pin.style.transform = `translateZ(${pinUnder}px)`;
+                    b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
                     setTimeout(() => {
                         b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                         updatePinState(b.pin, newX);
@@ -1350,15 +1351,15 @@
         }
         pin.dataset.wasOverHole = isOverAnyHole;
         if (false === isOverAnyHole) {
-            pin.style.transform = `translateZ(${pinUnder}px)`;
+            pin.style.transform = `translateZ(${PIN_UNDER}px)`;
             return;
         }
         if (true === isCorrectHole) {
-            pin.style.transform = `translateZ(${pinRaised}px)`;
+            pin.style.transform = `translateZ(${PIN_RAISED}px)`;
             return;
         }
         if (true === isOverAnyHole) {
-            pin.style.transform = `translateZ(${pinMiddle}px)`;
+            pin.style.transform = `translateZ(${PIN_MIDDLE}px)`;
 
         }
     }
@@ -1421,7 +1422,7 @@
             plate.addEventListener('touchstart', () => clearHoverPreview(true), {passive: true});
             let holesHtml = '';
             for (let h = 0; h < 7; h++) if (3 === h) {
-                holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${pinRaised}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
+                holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
             } else holesHtml += `<div class="hole ` + h + `"></div>`;
             let tubeHtml = '';
             const corners = [{class: 'tube-tr', startAngle: 0}, {class: 'tube-br', startAngle: 90}, {
@@ -1921,16 +1922,16 @@
     window.addEventListener('touchend', handleDragEnd);
     document.addEventListener('touchcancel', handleDragEnd);
 
-    const tutorialOverlay = document.getElementById('tutorialOverlay');
-    const tutorialBubble = document.getElementById('tutorialBubble');
-    const tutorialText = document.getElementById('tutorialText');
-    const tutorialArrow = document.getElementById('tutorialArrow');
-    const questionMarkBtn = document.querySelector('.question-mark');
-    const iconQm = document.getElementById('icon-qm');
-    const iconX = document.getElementById('icon-x');
-    const guidePrev = document.getElementById('guidePrev');
-    const guideNext = document.getElementById('guideNext');
-    const footer = document.getElementById('footer');
+    const tutorialOverlay = document.getElementById('tutorialOverlay'),
+        tutorialBubble = document.getElementById('tutorialBubble'),
+        tutorialText = document.getElementById('tutorialText'),
+        tutorialArrow = document.getElementById('tutorialArrow'),
+        questionMarkBtn = document.querySelector('.question-mark'),
+        iconQm = document.getElementById('icon-qm'),
+        iconX = document.getElementById('icon-x'),
+        guidePrev = document.getElementById('guidePrev'),
+        guideNext = document.getElementById('guideNext'),
+        footer = document.getElementById('footer');
 
     let tutorialStep = 0;
     let currentTutorialVersion = 0;
@@ -2086,7 +2087,7 @@
                             b.pinWrapper.style.transition = 'transform 0.5s ease';
                             b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
                             b.pin.style.transition = 'transform 0.1s ease-in';
-                            b.pin.style.transform = `translateZ(${pinUnder}px)`;
+                            b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
                             setTimeout(() => {
                                 b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                                 updatePinState(b.pin, targetX);
@@ -2104,7 +2105,7 @@
                         b.pinWrapper.style.transition = 'transform 0.5s ease';
                         b.pinWrapper.style.transform = `translateX(0px)`;
                         b.pin.style.transition = 'transform 0.1s ease-in';
-                        b.pin.style.transform = `translateZ(${pinUnder}px)`;
+                        b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
                         setTimeout(() => {
                             b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                             updatePinState(b.pin, 0);
