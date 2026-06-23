@@ -825,7 +825,7 @@
             justify-content: center;
             align-items: center;
             gap: 10px;
-            z-index: 1001;
+            z-index: 1;
         }
 
         .box40, .question-mark {
@@ -928,7 +928,7 @@
     <div id="tutorialText"></div>
 </div>
 
-<footer>
+<footer id="footer">
     <button class="guide-nav" id="guidePrev">
         <svg fill="#000000" height="40" viewBox="0 0 24 24" width="40" xmlns="http://www.w3.org/2000/svg">
             <path d="M22,11 H5.41 l5.3,-5.29 A1,1 0 1,0 9.29,4.29 l-7,7 a1,1 0 0,0 0,1.42 l7,7 a1,1 0 0,0 1.42,-1.42 L5.41,13 H22 a1,1 0 0,0 0,-2 Z"/>
@@ -1930,6 +1930,7 @@
     const iconX = document.getElementById('icon-x');
     const guidePrev = document.getElementById('guidePrev');
     const guideNext = document.getElementById('guideNext');
+    const footer = document.getElementById('footer');
 
     let tutorialStep = 0;
     let currentTutorialVersion = 0;
@@ -1977,6 +1978,8 @@
         tutorialStep = 1;
         currentTutorialVersion++;
         runTutorialStep(currentTutorialVersion);
+        debugger
+        footer.style.zIndex = '1001';
     }
 
     function endTutorial() {
@@ -1990,6 +1993,7 @@
         iconQm.style.display = 'block';
         iconX.style.display = 'none';
         resetBtn.click();
+        footer.style.zIndex = '1';
     }
 
     async function runTutorialStep(version) {
