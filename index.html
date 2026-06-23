@@ -1610,7 +1610,6 @@
                             gameState.dragState.activePlate.classList.add('linked-highlight-reverse');
                         } else if (-1 === masterBlock.group[curBlock.id]) {
                             delete masterBlock.group[curBlock.id];
-                            curBlock.group = {[curBlock.id]: 1};
                             gameState.dragState.activePlate.classList.remove('linked-highlight-reverse');
                         }
                     } else {
