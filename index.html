@@ -1608,8 +1608,7 @@
                             masterBlock.group[curBlock.id] = -1;
                             gameState.dragState.activePlate.classList.remove('linked-highlight');
                             gameState.dragState.activePlate.classList.add('linked-highlight-reverse');
-                        }
-                        if (-1 === masterBlock.group[curBlock.id]) {
+                        } else if (-1 === masterBlock.group[curBlock.id]) {
                             delete masterBlock.group[curBlock.id];
                             gameState.dragState.activePlate.classList.remove('linked-highlight-reverse');
                         }
