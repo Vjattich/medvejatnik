@@ -394,13 +394,13 @@
         .bottom-face {
             bottom: 0;
             transform-origin: bottom;
-            transform: translateZ(12px) rotateX(90deg);
+            transform: translateZ(11px) rotateX(90deg);
         }
 
         .right-face, .left-face {
             position: absolute;
             top: 29px;
-            width: 24px;
+            width: 22px;
             height: calc(100% - 60px);
             background: #777;
             box-sizing: border-box;
@@ -410,14 +410,26 @@
             right: 0;
             border-right: 1px solid #777;
             transform-origin: right;
-            transform: translateZ(-11px) rotateY(90deg);
+            transform: translateZ(-10.6px) rotateY(90deg);
+        }
+
+        @supports (-webkit-appearance: none) {
+            .right-face {
+                transform: translateZ(-10px) rotateY(90deg) translateX(0.3px);
+            }
+        }
+
+        @supports (-moz-appearance: none) {
+            .right-face {
+                transform: translateZ(-10.6px) rotateY(90deg);
+            }
         }
 
         .left-face {
             left: 0;
             border-left: 1px solid #777;
             transform-origin: left;
-            transform: translateZ(-11px) rotateY(-90deg);
+            transform: translateZ(-13px) rotateY(-90deg);
         }
 
         .corner-tube {
@@ -443,7 +455,7 @@
         }
 
         .tube-tl {
-            top: 31px;
+            top: 30px;
             left: 30px;
         }
 
@@ -452,7 +464,7 @@
             left: -5px;
             top: -12px;
             width: 8px;
-            height: 24px;
+            height: 23px;
             background: #777;
             border-left: 1px solid #777;
             transform-origin: center center;
@@ -532,12 +544,34 @@
         .pin-side {
             position: absolute;
             top: 30%;
-            left: calc(50% - 1.5px);
-            width: 3px;
             height: 18px;
             background: linear-gradient(180deg, #b87333, #5a3212);
             transform-origin: center top;
             backface-visibility: hidden;
+        }
+
+        @supports (-webkit-appearance: none) {
+            .pin-side {
+                left: 50%;
+                width: 3px;
+            }
+
+            .pin-cap {
+                left: 1px;
+                transform: translateZ(0.4px);
+            }
+        }
+
+        @supports (-moz-appearance: none) {
+            .pin-side {
+                left: calc(50% - 1px);
+                width: 3px;
+            }
+
+            .pin-cap {
+                left: 0.3px;
+                transform: translateZ(-0.2px);
+            }
         }
 
         .pin.pin-body-visible .pin-body {
@@ -899,6 +933,21 @@
             height: 40px;
             margin: 5px;
         }
+
+        /* --- CHROME 3D RENDERING FIX --- */
+        .top-face, .bottom-face, .right-face, .left-face, .tube-panel {
+            outline: 1px solid #777;
+        }
+
+        .front-face {
+            outline: 1px solid transparent;
+        }
+
+        /* Force WebKit to strictly preserve 3D context on all depth elements */
+        .lock-mechanism, .plate, .top-face, .corner-tube, .hole, .pin-wrapper, .pin, .pin-body {
+            -webkit-transform-style: preserve-3d;
+        }
+        /* ------------------------------- */
     </style>
 </head>
 <body>
@@ -1455,15 +1504,24 @@
                 holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
             } else holesHtml += `<div class="hole ` + h + `"></div>`;
             let tubeHtml = '';
-            const corners = [{class: 'tube-tr', startAngle: 0}, {class: 'tube-br', startAngle: 90}, {
-                class: 'tube-bl',
-                startAngle: 180
-            }, {class: 'tube-tl', startAngle: 270}];
+            const corners = [
+                {class: 'tube-tr', startAngle: 0},
+                {class: 'tube-br', startAngle: 90},
+                {class: 'tube-bl', startAngle: 180},
+                {class: 'tube-tl', startAngle: 270}
+            ];
             corners.forEach(corner => {
+                let Ydeg = '-30px';
+                if ('tube-tl' === corner.class || 'tube-bl' === corner.class) {
+                    Ydeg = '-29px'
+                }
+                if ('tube-tr' === corner.class || 'tube-br' === corner.class) {
+                    Ydeg = '-29.5px'
+                }
                 tubeHtml += `<div class="corner-tube ${corner.class}">`;
                 for (let a = 7.5; a < 90; a += 15) {
                     let totalAngle = corner.startAngle + a;
-                    tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(-30px) rotateX(-90deg)"></div>`;
+                    tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(${Ydeg}) rotateX(-90deg)"></div>`;
                 }
                 tubeHtml += '</div>';
             });
