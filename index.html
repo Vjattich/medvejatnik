@@ -182,7 +182,6 @@
             flex: 0 0 44px;
             padding: 0;
             margin: 0;
-            font-size: 22px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -917,7 +916,12 @@
         </div>
     </label>
     <div class="action-row controls-item">
-        <button aria-label="Reset" id="resetBtn" title="Reset Lock">&#x21BB;</button>
+        <button aria-label="Reset" id="resetBtn" title="Reset Lock">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+            </svg>
+        </button>
         <button id="solveBtn">Solve Lock</button>
     </div>
     <label class="toggle-label dynamic-control" id="squashLabel">
@@ -1517,8 +1521,8 @@
     });
 
     function toggleExpandList(forceState) {
-        const isExpanded = forceState !== undefined ? forceState : solutionList.classList.toggle('is-expanded');
-        if (forceState !== undefined) solutionList.classList.toggle('is-expanded', forceState);
+        const isExpanded = undefined !== forceState ? forceState : solutionList.classList.toggle('is-expanded');
+        if (undefined !== forceState) solutionList.classList.toggle('is-expanded', forceState);
         const parentRow = document.getElementById('stepControlsRow');
         if (parentRow) parentRow.classList.toggle('is-expanded-parent', isExpanded);
         expandBtn.textContent = isExpanded ? '▲ Collapse List ▲' : '▼ Expand Full List ▼';
@@ -1625,7 +1629,7 @@
 
     function handleDragStart(e) {
         if (e.touches) gameState.lastTouchTime = Date.now();
-        if (e.touches && e.touches.length >= 2) {
+        if (e.touches && 2 <= e.touches.length) {
             document.body.classList.add('is-zooming');
             pinchState.initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
@@ -1676,7 +1680,7 @@
     }
 
     function handleDragMove(e) {
-        if (e.touches && e.touches.length === 2) {
+        if (e.touches && 2 === e.touches.length) {
             e.preventDefault();
             if (!pinchState.initialDistance) {
                 pinchState.initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
