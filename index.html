@@ -1892,13 +1892,18 @@
         let pressTimer;
         let animTimer;
         let isLongPressExecuted = false;
+
         const startPress = (e) => {
+            // Prevent any touch interaction if the button is disabled
+            if (button.disabled) return;
+
             if (!gameState.isMobile) return;
             if (null === currentSolution || isPlaying) return;
+
             isLongPressExecuted = false;
-            animTimer = setTimeout(() => {
-                button.classList.add('is-pressing');
-            }, 150);
+
+            animTimer = setTimeout(() => button.classList.add('is-pressing'), 150);
+
             pressTimer = setTimeout(() => {
                 button.classList.remove('is-pressing');
                 isLongPressExecuted = true;
@@ -1906,15 +1911,18 @@
                 if (navigator.vibrate) navigator.vibrate(50);
             }, 600);
         };
+
         const clearPress = () => {
             clearTimeout(animTimer);
             clearTimeout(pressTimer);
             button.classList.remove('is-pressing');
         };
+
         button.addEventListener('touchstart', startPress, {passive: true});
         button.addEventListener('touchend', clearPress);
         button.addEventListener('touchcancel', clearPress);
         button.addEventListener('click', (e) => {
+            if (button.disabled) return;
             if (isLongPressExecuted) {
                 e.preventDefault();
                 return;
