@@ -1690,7 +1690,7 @@
             sizeInput.value = newScale;
             return;
         }
-        if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length) return;
+        if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length || gameState.activeLinkerId) return;
         gameState.dragState.hasMoved = true;
         let clientX = getClientX(e);
         if (Math.abs(clientX - gameState.dragState.startInputX) > DRAG_THRESHOLD) {
