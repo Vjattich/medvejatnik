@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test Suite</title>
+<link href="https://code.jquery.com/qunit/qunit-2.26.0.css" rel="stylesheet">
+<body>
+<div id="qunit"></div>
+<div id="qunit-fixture"></div>
+<script src="https://code.jquery.com/qunit/qunit-2.26.0.js"></script>
+<script src="solver.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sinon@22.0.0/pkg/sinon.min.js"></script>
+<div id="mock-ui" style="display:none;"></div>
+<script>
+    // 1. Fetch the production HTML
+    async function setupTestEnvironment() {
+        const response = await fetch('index1.html');
+        const htmlText = await response.text();
+
+        // 2. Parse it into a virtual DOM
+        const prodDoc = new DOMParser().parseFromString(htmlText, 'text/html');
+
+        // 3. Extract the parts you need (e.g., the controls and the lock)
+        // and inject them into our hidden mock-ui div
+        document.getElementById('mock-ui').innerHTML = prodDoc.body.innerHTML;
+
+        // 4. NOW load index.js dynamically.
+        // We must do this after injection, or index.js will crash looking for null elements.
+        const script = document.createElement('script');
+        script.src = 'index.js';
+        script.onload = () => {
+            QUnit.start();
+        };
+        document.body.appendChild(script);
+    }
+
+    QUnit.config.autostart = false;
+    setupTestEnvironment();
+
+    QUnit.module('Lockpicker Game Logic', hooks => {
+
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // Re-establish a known baseline state before every test
+        hooks.beforeEach(() => {
+            countInput.value = 3; // Keep the test scope small
+            renderBlocks(3);
+        });
+
+        QUnit.test('renderBlocks() initializes the correct state footprint', assert => {
+            assert.equal(gameState.blocks.length, 3, 'Game state should track exactly 3 plates');
+            assert.equal(lock.children.length, 3, 'DOM should mount 3 plate elements');
+
+            const firstBlock = gameState.blocks[0];
+            assert.equal(firstBlock.id, 1, 'First block identity should be 1');
+            assert.equal(firstBlock.x, 0, 'Block x-coordinate should initialize at 0');
+        });
+
+        QUnit.test('setStatus() modifies UI classes correctly', assert => {
+            setStatus('Invalid sequence', 'error');
+
+            assert.equal(statusMsg.textContent, 'Invalid sequence', 'Text content reflects status');
+            assert.ok(statusMsg.classList.contains('status-error'), 'Class list appends the error type');
+
+            const parentRow = statusMsg.closest('.play-status-row');
+            assert.ok(parentRow.classList.contains('show-stretch'), 'Parent container toggles visibility');
+        });
+
+        QUnit.test('compactSetup() correctly structures the state matrix for the solver', assert => {
+            // Simulate a state shift
+            gameState.blocks[0].x = 36.5;       // Simulate one HOLE_SPACING to the right
+            gameState.blocks[0].group[2] = 1;   // Link Block 1 to Block 2
+
+            const setup = compactSetup();
+
+            assert.equal(setup.n, 3, 'The block count matches');
+            assert.deepEqual(setup.start, [1, 0, 0], 'The position array normalizes exact coordinates into grid offsets');
+            assert.equal(setup.effects[0][1], 1, 'The relational matrix tracks the applied grouping correctly');
+        });
+
+        QUnit.test('applySingleMove() handles squashed movement logic accurately', assert => {
+            const move = {plate: 2, direction: 'right'};
+
+            // Assert the forward timeline
+            applySingleMove(move, false);
+            assert.equal(gameState.blocks[1].x, 36.5, 'Moving right increments the target block x-coordinate');
+
+            // Assert the rollback timeline
+            applySingleMove(move, true);
+            assert.equal(gameState.blocks[1].x, 0, 'Reversing the move accurately restores the previous coordinate');
+        });
+
+        QUnit.test('longPress() enters linking mode when no linker is active', assert => {
+            // Tell QUnit this test involves async timeouts
+            const done = assert.async();
+
+            // 1. Setup: Simulate resting on plate 1 (id: 1) without dragging
+            gameState.dragState.isDragging = false;
+            gameState.dragState.activePlate = gameState.blocks[0].el; // Array index 0 is id 1
+
+            // 2. Action: Trigger long press
+            longPress(1);
+
+            // 3. Assert: Wait just slightly longer than the long press duration
+            setTimeout(() => {
+                assert.equal(gameState.activeLinkerId, 1, 'Sets activeLinkerId to the clicked block ID');
+                assert.ok(gameState.dragState.activePlate.classList.contains('selected'), 'Visually marks the active plate as selected');
+                done(); // Finish the async test
+            }, LONG_PRESS_DURATION + 50);
+        });
+
+        QUnit.test('longPress() exits linking mode when clicking the active linker again', assert => {
+            const done = assert.async();
+
+            // 1. Setup: Manually force the game into linking mode on plate 1
+            gameState.activeLinkerId = 1;
+            gameState.dragState.isDragging = false;
+            gameState.dragState.activePlate = gameState.blocks[0].el;
+            gameState.dragState.activePlate.classList.add('selected');
+
+            // 2. Action: Trigger long press on the SAME active linker
+            longPress(1);
+
+            // 3. Assert: Deselection uses the SHORT_PRESS_DURATION
+            setTimeout(() => {
+                assert.equal(gameState.activeLinkerId, null, 'Unsets the activeLinkerId back to null');
+                assert.notOk(gameState.dragState.activePlate.classList.contains('selected'), 'Removes the selected UI class');
+                done();
+            }, SHORT_PRESS_DURATION + 50);
+        });
+
+    });
+
+    QUnit.module('Lockpicker Game Logic - Long Press', hooks => {
+        let clock;
+
+        // 1. Setup BEFORE every single test in this module
+        hooks.beforeEach(() => {
+            clock = sinon.useFakeTimers();
+
+            // It is also highly recommended to hard-reset your gameState here
+            // so previous tests don't leave artifacts behind!
+            gameState.activeLinkerId = null;
+            gameState.dragState.isDragging = false;
+            if (gameState.blocks[0]) gameState.blocks[0].group = {};
+        });
+
+        // 2. Cleanup AFTER every single test (Runs even if assertions fail!)
+        hooks.afterEach(() => {
+            clock.restore();
+        });
+
+        // 3. The actual test
+        QUnit.test('cycles through link states on target blocks', async assert => {
+            const masterBlock = gameState.blocks[0]; // id 1
+            const targetBlock = gameState.blocks[1]; // id 2
+
+            gameState.activeLinkerId = 1;
+            gameState.dragState.activePlate = targetBlock.el;
+
+            // --- 1st Press: Create normal link ---
+            longPress(2);
+
+            // Use tickAsync to ensure Promises AND timeouts are both resolved
+            await clock.tickAsync(SHORT_PRESS_DURATION + 1);
+
+            assert.equal(masterBlock.group[2], 1, 'First long press creates a forward link (1)');
+            assert.ok(targetBlock.el.classList.contains('linked-highlight'), 'Adds linked-highlight class');
+
+            // --- 2nd Press: Switch to reverse link ---
+            longPress(2);
+            await clock.tickAsync(SHORT_PRESS_DURATION + 1);
+
+            assert.equal(masterBlock.group[2], -1, 'Second long press switches to a reverse link (-1)');
+            assert.ok(targetBlock.el.classList.contains('linked-highlight-reverse'), 'Changes to reverse class');
+
+            // --- 3rd Press: Remove link entirely ---
+            longPress(2);
+            await clock.tickAsync(SHORT_PRESS_DURATION + 1);
+
+            assert.equal(masterBlock.group[2], undefined, 'Third long press removes the link');
+        });
+    });
+</script>
+</body>
+
