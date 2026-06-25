@@ -440,6 +440,59 @@ function clearHoverPreview(isEndHovering) {
     gameState.isHovering = false;
 }
 
+function createPlate(id, prevX, zPos) {
+
+    const plate = document.createElement('div');
+    plate.className = 'plate glow';
+    plate.dataset.id = id;
+
+    let holesHtml = '';
+    for (let h = 0; h < 7; h++) {
+        if (3 === h) {
+            holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
+        } else {
+            holesHtml += `<div class="hole ` + h + `"></div>`;
+        }
+    }
+
+    let tubeHtml = '';
+    const corners = [
+        {class: 'tube-tr', startAngle: 0},
+        {class: 'tube-br', startAngle: 90},
+        {class: 'tube-bl', startAngle: 180},
+        {class: 'tube-tl', startAngle: 270}
+    ];
+
+    corners.forEach(corner => {
+        let Ydeg = '-30px';
+        if ('tube-tl' === corner.class || 'tube-bl' === corner.class) {
+            Ydeg = '-29px';
+        }
+        if ('tube-tr' === corner.class || 'tube-br' === corner.class) {
+            Ydeg = '-29.5px';
+        }
+        tubeHtml += `<div class="corner-tube ${corner.class}">`;
+        for (let a = 7.5; a < 90; a += 15) {
+            let totalAngle = corner.startAngle + a;
+            tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(${Ydeg}) rotateX(-90deg)"></div>`;
+        }
+        tubeHtml += '</div>';
+    });
+
+    plate.innerHTML = ` <div class="front-face"></div> <div class="top-face">${holesHtml}</div> <div class="right-face"></div> <div class="bottom-face"></div> <div class="left-face"></div> ${tubeHtml} `;
+    plate.style.transform = `translateZ(${zPos}px) translateX(${prevX}px)`;
+
+
+    plate.addEventListener('mouseenter', () => {
+        if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
+        updateHoverPreview(plate);
+    });
+    plate.addEventListener('mouseleave', () => clearHoverPreview(true));
+    plate.addEventListener('touchstart', () => clearHoverPreview(true), {passive: true});
+
+    return plate;
+}
+
 function renderBlocks() {
 
     const
@@ -460,7 +513,7 @@ function renderBlocks() {
         const zPos = (centerOffset - i) * spacing;
 
         let prevX = 0;
-        let currentGroup = { [id]: 1 };
+        let currentGroup = null;
 
         const oldBlock = oldBlocks.get(id);
         if (oldBlock) {
@@ -475,57 +528,10 @@ function renderBlocks() {
                         currentGroup[kid] = oldGroup[key];
                     }
                 }
-            } else {
-                currentGroup = oldGroup;
             }
         }
 
-        const plate = document.createElement('div');
-        plate.className = 'plate glow';
-        plate.dataset.id = id;
-
-        plate.addEventListener('mouseenter', () => {
-            if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
-            updateHoverPreview(plate);
-        });
-        plate.addEventListener('mouseleave', () => clearHoverPreview(true));
-        plate.addEventListener('touchstart', () => clearHoverPreview(true), {passive: true});
-
-        let holesHtml = '';
-        for (let h = 0; h < 7; h++) {
-            if (3 === h) {
-                holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
-            } else {
-                holesHtml += `<div class="hole ` + h + `"></div>`;
-            }
-        }
-
-        let tubeHtml = '';
-        const corners = [
-            {class: 'tube-tr', startAngle: 0},
-            {class: 'tube-br', startAngle: 90},
-            {class: 'tube-bl', startAngle: 180},
-            {class: 'tube-tl', startAngle: 270}
-        ];
-
-        corners.forEach(corner => {
-            let Ydeg = '-30px';
-            if ('tube-tl' === corner.class || 'tube-bl' === corner.class) {
-                Ydeg = '-29px';
-            }
-            if ('tube-tr' === corner.class || 'tube-br' === corner.class) {
-                Ydeg = '-29.5px';
-            }
-            tubeHtml += `<div class="corner-tube ${corner.class}">`;
-            for (let a = 7.5; a < 90; a += 15) {
-                let totalAngle = corner.startAngle + a;
-                tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(${Ydeg}) rotateX(-90deg)"></div>`;
-            }
-            tubeHtml += '</div>';
-        });
-
-        plate.innerHTML = ` <div class="front-face"></div> <div class="top-face">${holesHtml}</div> <div class="right-face"></div> <div class="bottom-face"></div> <div class="left-face"></div> ${tubeHtml} `;
-        plate.style.transform = `translateZ(${zPos}px) translateX(${prevX}px)`;
+        const plate = createPlate(id, prevX, zPos);
         lock.prepend(plate);
 
         gameState.blocks.push({
@@ -535,7 +541,7 @@ function renderBlocks() {
             el: plate,
             pinWrapper: plate.querySelector('.pin-wrapper'),
             pin: plate.querySelector('.pin'),
-            group: currentGroup
+            group: currentGroup || { [id]: 1 }
         });
 
         if (plate.querySelector('.pin')) {
