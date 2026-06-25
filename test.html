@@ -39,7 +39,7 @@
 
         hooks.beforeEach(() => {
             countInput.value = 3;
-            renderBlocks(3);
+            renderBlocks();
         });
 
         QUnit.test('renderBlocks() initializes the correct state footprint', assert => {
@@ -133,7 +133,7 @@
             gameState.blocks[2].x = -36.5;
 
             countInput.value = 4;
-            renderBlocks(4);
+            renderBlocks();
 
             assert.equal(gameState.blocks[0].group[2], 1, 'Forward link to Block 2 is preserved after expanding count');
             assert.equal(gameState.blocks[0].group[3], -1, 'Reverse link to Block 3 is preserved after expanding count');
@@ -144,7 +144,7 @@
             assert.equal(gameState.blocks[0].group[4], 1, 'Sanity check: Link to Plate 4 is successfully established');
 
             countInput.value = 3;
-            renderBlocks(3);
+            renderBlocks();
 
             assert.equal(gameState.blocks[0].group[2], 1, 'Still has link to block 2');
             assert.strictEqual(gameState.blocks[0].group[3], -1, 'Still has link to block 3');
@@ -159,14 +159,15 @@
 
         hooks.beforeEach(() => {
             countInput.value = 3;
-            renderBlocks(3);
+            renderBlocks();
         });
 
         QUnit.test('renderBlocks() correctly renders internal DOM structure (pins and corners)', assert => {
             gameState.blocks = [];
             lock.innerHTML = '';
 
-            renderBlocks(1);
+            countInput.value = 1;
+            renderBlocks();
 
             const plate = lock.querySelector('.plate[data-id="1"]');
             assert.ok(plate, 'Plate element was created and added to the lock DOM');
@@ -211,13 +212,14 @@
 
     });
 
+    //Should be run last one. Cuz of timers
     QUnit.module('Lockpicker Game Logic - Long Press', hooks => {
         let clock;
 
         hooks.beforeEach(() => {
             clock = sinon.useFakeTimers();
             countInput.value = 3;
-            renderBlocks(3);
+            renderBlocks();
             gameState.activeLinkerId = null;
             gameState.dragState.isDragging = false;
         });
@@ -254,6 +256,101 @@
             await clock.tickAsync(SHORT_PRESS_DURATION + 1);
 
             assert.equal(masterBlock.group[2], undefined, 'Third long press removes the link');
+        });
+
+        QUnit.test('deselecting via long press retains hover preview if mouse remains on plate (Desktop)', async assert => {
+            const masterBlock = gameState.blocks[0];
+            const targetBlock = gameState.blocks[1];
+
+            masterBlock.group[2] = 1;
+
+            gameState.isMobile = false;
+
+            gameState.activeLinkerId = 1;
+            gameState.dragState.isDragging = false;
+            gameState.dragState.activePlate = masterBlock.el;
+            masterBlock.el.classList.add('selected');
+
+            longPress(1);
+
+            await clock.tickAsync(SHORT_PRESS_DURATION + 1);
+
+            // 3. Assert: Deselection logic successfully triggered
+            assert.equal(gameState.activeLinkerId, null, 'Remove linker');
+            assert.notOk(masterBlock.el.classList.contains('selected'), 'Removes selected');
+
+            assert.ok(masterBlock.el.classList.contains('is-touched'), 'Hover preview retains is-touched on the deslected plate');
+            assert.ok(targetBlock.el.classList.contains('linked-highlight'), 'Target block is highlighted by hover preview');
+        });
+
+        QUnit.test('deselect finger still on plate (Mobile)', async assert => {
+            const masterBlock = gameState.blocks[0]; // id 1
+            const targetBlock = gameState.blocks[1]; // id 2
+
+            // Establish a link so the hover preview has a tangible visual effect
+            masterBlock.group[2] = 1;
+
+            // Simulate mobile environment
+            gameState.isMobile = true;
+
+            gameState.activeLinkerId = 1;
+            gameState.dragState.isDragging = false;
+            gameState.dragState.activePlate = masterBlock.el;
+            masterBlock.el.classList.add('selected');
+
+            const touchObj = new Touch({identifier: Date.now(), target: masterBlock.el, clientX: 0, clientY: 0, screenX: 0, screenY: 0, pageX: 0, pageY: 0, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1});
+
+            const touchStartEvent = new TouchEvent('touchstart', {
+                bubbles: true,
+                cancelable: true,
+                touches: [touchObj]
+            });
+            masterBlock.el.dispatchEvent(touchStartEvent);
+
+            await clock.tickAsync(SHORT_PRESS_DURATION + 1);
+
+            assert.equal(gameState.activeLinkerId, null, 'Unsets the activeLinkerId back to null');
+            assert.notOk(masterBlock.el.classList.contains('selected'), 'Removes the selected UI class');
+            assert.ok(masterBlock.el.classList.contains('is-touched'), 'Hover preview retains is-touched on the deslected plate');
+            assert.ok(targetBlock.el.classList.contains('linked-highlight'), 'Target block is highlighted by hover preview');
+        });
+
+        QUnit.test('deselect finger move out of plate (Mobile)', async assert => {
+            const masterBlock = gameState.blocks[0];
+            const targetBlock = gameState.blocks[1];
+
+            masterBlock.group[2] = 1;
+            gameState.isMobile = true;
+
+            // 1. Setup
+            gameState.activeLinkerId = 1;
+            gameState.dragState.activePlate = masterBlock.el;
+            masterBlock.el.classList.add('selected');
+
+            const touchObj = new Touch({identifier: Date.now(), target: masterBlock.el, clientX: 0, clientY: 0, screenX: 0, screenY: 0, pageX: 0, pageY: 0, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1});
+            const touchStartEvent = new TouchEvent('touchstart', {bubbles: true, cancelable: true, touches: [touchObj]});
+            masterBlock.el.dispatchEvent(touchStartEvent);
+
+            await clock.tickAsync(LONG_PRESS_DURATION + 1);
+
+            const touchEnd = new Touch({identifier: Date.now(), target: masterBlock.el, clientX: 0, clientY: 0, screenX: 0, screenY: 0, pageX: 0, pageY: 0, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1});
+            masterBlock.el.dispatchEvent(new TouchEvent('touchend', {bubbles: true, cancelable: true, touches: [touchEnd]}));
+            masterBlock.el.dispatchEvent(new TouchEvent('touchcancel', {bubbles: true, cancelable: true, touches: [touchEnd]}));
+
+            // const mouseUpEvent = new MouseEvent('mouseup', {
+            //     bubbles: true,
+            //     cancelable: true,
+            //     view: window,
+            //     changedTouches: true
+            // });
+            // await clock.tickAsync(LONG_PRESS_DURATION + LONG_PRESS_DURATION);
+            // window.dispatchEvent(mouseUpEvent);
+
+            assert.equal(gameState.activeLinkerId, null, 'Unsets the activeLinkerId');
+            assert.notOk(masterBlock.el.classList.contains('selected'), 'Removes selection');
+            //here should be failed one
+            assert.notOk(masterBlock.el.classList.contains('is-touched'), 'Leave hover');
+            assert.notOk(targetBlock.el.classList.contains('linked-highlight'), 'Do not colored');
         });
     });
 

@@ -440,12 +440,18 @@ function clearHoverPreview(isEndHovering) {
     gameState.isHovering = false;
 }
 
-function renderBlocks(count) {
-    lock.innerHTML = '';
-    const centerOffset = (count - 1) / 2;
-    const spacing = gameState.isMobile ? 55 : 50;
+function renderBlocks() {
 
+    const
+        count = parseInt(countInput.value),
+        centerOffset = (count - 1) / 2,
+        spacing = gameState.isMobile ? 55 : 50
+    ;
+
+    //todo does it need to be map here (id as a place in obj)
     const oldBlocks = new Map(gameState.blocks.map(b => [b.id, b]));
+
+    lock.innerHTML = '';
     gameState.blocks = [];
     gameState.activeLinkerId = null;
 
@@ -540,9 +546,10 @@ function renderBlocks(count) {
 }
 
 sizeInput.addEventListener('input', (e) => document.documentElement.style.setProperty('--block-scale', e.target.value));
+//todo need event here or can manual call renderBlocks(),clearSolutionUI()
 countInput.addEventListener('input', (e) => {
-    let count = parseInt(e.target.value);
-    if (0 < count && 50 >= count) renderBlocks(count);
+    renderBlocks()
+    clearSolutionUI()
 });
 btnDecrease.addEventListener('click', () => {
     let currentValue = parseInt(countInput.value, 10);
@@ -612,9 +619,9 @@ resetBtn.addEventListener('click', () => {
     gameState.dragState.movingGroup = [];
     gameState.dragState.isDragging = false;
     clearTimeout(gameState.dragState.longPressTimer);
-    renderBlocks(parseInt(countInput.value));
+    renderBlocks();
 });
-renderBlocks(countInput.value);
+renderBlocks();
 
 function getClientX(e) {
     return e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
@@ -1103,7 +1110,7 @@ async function runTutorialStep(version) {
 
     if (6 !== parseInt(countInput.value) && 3 !== tutorialStep) {
         countInput.value = 6;
-        renderBlocks(6);
+        renderBlocks();
     }
 
     if (1 === tutorialStep) {
@@ -1155,7 +1162,7 @@ async function runTutorialStep(version) {
         while (version === currentTutorialVersion) {
             if (6 !== parseInt(countInput.value)) {
                 countInput.value = 6;
-                renderBlocks(6);
+                renderBlocks();
             }
             await sleep(500);
             if (version !== currentTutorialVersion) break;
@@ -1223,7 +1230,7 @@ async function runTutorialStep(version) {
     } else if (4 === tutorialStep) {
         if (6 !== parseInt(countInput.value)) {
             countInput.value = 6;
-            renderBlocks(6);
+            renderBlocks();
         }
         tutorialText.textContent = "Long-press to group plates. Blue moves with it, Red opposite. Tap again to deselect.";
         while (version === currentTutorialVersion) {
@@ -1285,7 +1292,7 @@ async function runTutorialStep(version) {
         tutorialText.textContent = gameState.isMobile ? "Touch the number row to see what groups are selected for plate" : "Hover with mouse to understand what are selected for plate";
         if (6 !== parseInt(countInput.value)) {
             countInput.value = 6;
-            renderBlocks(6);
+            renderBlocks();
         }
         while (version === currentTutorialVersion) {
             gameState.blocks.forEach(b => b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched'));
