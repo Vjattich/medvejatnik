@@ -957,7 +957,7 @@
     </style>
 </head>
 <body>
-<div class="controls">
+<div id="controls" class="controls">
     <label class="controls-item" id="scaleLabel">Scale:
         <input id="sizeInput" max="2" min="0.3" step="0.1" type="range" value="1">
     </label>
@@ -1047,6 +1047,7 @@
     const lock = document.getElementById('lock'),
         sizeInput = document.getElementById('sizeInput'),
         countInput = document.getElementById('countInput'),
+        controls = document.getElementById('controls'),
         resetBtn = document.getElementById('resetBtn'),
         solveBtn = document.getElementById('solveBtn'),
         btnDecrease = document.getElementById('btnDecreaseBlocks'),
@@ -2100,6 +2101,9 @@
         currentTutorialVersion++;
         runTutorialStep(currentTutorialVersion);
         footer.style.zIndex = '1001';
+        if (gameState.isMobile) {
+            controls.style.top = '55%';
+        }
     }
 
     function endTutorial() {
@@ -2114,6 +2118,9 @@
         iconX.style.display = 'none';
         resetBtn.click();
         footer.style.zIndex = '1';
+        if (gameState.isMobile) {
+            controls.style.top = null;
+        }
     }
 
     async function runTutorialStep(version) {
