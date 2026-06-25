@@ -35,6 +35,79 @@
     QUnit.config.autostart = false;
     setupTestEnvironment();
 
+    QUnit.module('Solver Algorithm', hooks => {
+
+        QUnit.test('isGoal() evaluates the target state correctly', assert => {
+            assert.ok(isGoal([0, 0, 0]), 'Returns true when all plates are at position 0');
+            assert.notOk(isGoal([0, 1, 0]), 'Returns false when any plate is non-zero');
+            assert.notOk(isGoal([-1, 0]), 'Returns false for negative offsets');
+        });
+
+        QUnit.test('applyMove() computes moves and relational effects while enforcing bounds', assert => {
+            const effects = [
+                [0, 1, -1],
+                [0, 0, 0],
+                [0, 0, 0]
+            ];
+
+            assert.deepEqual(applyMove([0, 0, 0], 2, 'right', effects), [0, 1, 0], 'Moves specified plate correctly without side effects');
+            assert.deepEqual(applyMove([0, 0, 0], 1, 'right', effects), [1, 1, -1], 'Applies relational effects (positive and negative) to linked plates');
+            assert.strictEqual(applyMove([3, 0], 1, 'right', [[0, 0], [0, 0]]), null, 'Returns null if a move forces a plate beyond MAX bound (3)');
+            assert.strictEqual(applyMove([-3, 0], 1, 'left', [[0, 0], [0, 0]]), null, 'Returns null if a move forces a plate beyond MIN bound (-3)');
+        });
+
+        QUnit.test('solve() correctly handles pathfinding and edge cases', assert => {
+            const defaultTimeout = 1000;
+
+            let result = solve(2, [0, 0], [[0, 0], [0, 0]], 'shortest-fast', defaultTimeout);
+            assert.deepEqual(result.moves, [], 'Returns empty moves array if already at goal state');
+            assert.deepEqual(result.states, [[0, 0]], 'Returns only the initial state in the states array');
+
+            result = solve(1, [-1], [[]], 'shortest-fast', defaultTimeout);
+            assert.strictEqual(result.moves.length, 1, 'Solves a simple 1-step puzzle');
+            assert.deepEqual(result.moves[0], { plate: 1, direction: 'right' }, 'Identifies the correct single move');
+
+            const start = [-1, -1];
+            const effects = [[0, 1], [0, 0]];
+            result = solve(2, start, effects, 'shortest-fast', defaultTimeout);
+            assert.strictEqual(result.moves.length, 1, 'Solves multi-plate puzzle in one move using linked effects');
+            assert.deepEqual(result.moves[0], { plate: 1, direction: 'right' }, 'Moving the master plate solves both');
+            assert.deepEqual(result.states, [[-1, -1], [0, 0]], 'Records the correct state progression');
+
+        });
+
+        QUnit.test('solve() correctly handles pathfinding and edge cases', assert => {
+            const defaultTimeout = 1000;
+
+            // 1. Immediate Goal
+            let result = solve(2, [0, 0], [[0, 0], [0, 0]], 'shortest-fast', defaultTimeout);
+            assert.deepEqual(result.moves, [], 'Returns empty moves array if already at goal state');
+            assert.deepEqual(result.states, [[0, 0]], 'Returns only the initial state in the states array');
+
+            // 2. Simple one-step puzzle
+            result = solve(1, [-1], [[]], 'shortest-fast', defaultTimeout);
+            assert.strictEqual(result.moves.length, 1, 'Solves a simple 1-step puzzle');
+            assert.deepEqual(result.moves[0], { plate: 1, direction: 'right' }, 'Identifies the correct single move');
+
+            // 3. Multi-plate puzzle using link effects
+            const start = [-1, -1];
+            const effects = [
+                [0, 1], // Plate 1 moves Plate 2 in the same direction
+                [0, 0]
+            ];
+            result = solve(2, start, effects, 'shortest-fast', defaultTimeout);
+            assert.strictEqual(result.moves.length, 1, 'Solves multi-plate puzzle in one move using linked effects');
+            assert.deepEqual(result.moves[0], { plate: 1, direction: 'right' }, 'Moving the master plate solves both');
+            assert.deepEqual(result.states, [[-1, -1], [0, 0]], 'Records the correct state progression');
+
+            // 4. Timeout Handling
+            // Pass -1ms to ensure the check (Date.now() - startTime > timeoutMs)
+            // evaluates to (0 > -1) and triggers immediately, regardless of CPU speed.
+            result = solve(2, [2, 2], [[0, 0], [0, 0]], 'shortest-fast', -1);
+            assert.ok(result.timeout, 'Returns a timeout flag if calculation exceeds timeoutMs limit');
+        });
+    });
+
     QUnit.module('Lockpicker Game Logic', hooks => {
 
         hooks.beforeEach(() => {
