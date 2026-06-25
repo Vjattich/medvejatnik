@@ -37,11 +37,8 @@
 
     QUnit.module('Lockpicker Game Logic', hooks => {
 
-        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-        // Re-establish a known baseline state before every test
         hooks.beforeEach(() => {
-            countInput.value = 3; // Keep the test scope small
+            countInput.value = 3;
             renderBlocks(3);
         });
 
@@ -132,80 +129,103 @@
             gameState.blocks[0].group[2] = 1;
             gameState.blocks[0].group[3] = -1;
 
-            gameState.blocks[0].x = 73;     // Move Plate 1
-            gameState.blocks[2].x = -36.5;  // Move Plate 3
+            gameState.blocks[0].x = 73;
+            gameState.blocks[2].x = -36.5;
 
             countInput.value = 4;
             renderBlocks(4);
 
-            assert.equal(
-                gameState.blocks[0].group[2],
-                1,
-                'Block 2 is preserved after expanding count'
-            );
-            assert.equal(
-                gameState.blocks[0].group[3],
-                -1,
-                'Block 3 is preserved after expanding count'
-            );
-            assert.equal(
-                gameState.blocks[0].x,
-                73,
-                'Plate 1 x-coordinate is preserved after expanding count'
-            );
-            assert.equal(
-                gameState.blocks[2].x,
-                -36.5,
-                'Plate 3 x-coordinate is preserved after expanding count'
-            );
+            assert.equal(gameState.blocks[0].group[2], 1, 'Forward link to Block 2 is preserved after expanding count');
+            assert.equal(gameState.blocks[0].group[3], -1, 'Reverse link to Block 3 is preserved after expanding count');
+            assert.equal(gameState.blocks[0].x, 73, 'Plate 1 x-coordinate is preserved after expanding count');
+            assert.equal(gameState.blocks[2].x, -36.5, 'Plate 3 x-coordinate is preserved after expanding count');
+
+            gameState.blocks[0].group[4] = 1;
+            assert.equal(gameState.blocks[0].group[4], 1, 'Sanity check: Link to Plate 4 is successfully established');
 
             countInput.value = 3;
             renderBlocks(3);
 
-            assert.equal(
-                gameState.blocks[0].group[2],
-                1,
-                'Still has link block 2'
-            );
-            assert.strictEqual(
-                gameState.blocks[0].group[3],
-                -1,
-                'Still has link block 3'
-            );
-            assert.equal(
-                gameState.blocks[0].x,
-                73,
-                'Plate 1 x-coordinate is STILL preserved after shrinking count'
-            );
-            assert.equal(
-                gameState.blocks[2].x,
-                -36.5,
-                'Plate 3 x-coordinate is STILL preserved after shrinking count'
-            );
+            assert.equal(gameState.blocks[0].group[2], 1, 'Still has link to block 2');
+            assert.strictEqual(gameState.blocks[0].group[3], -1, 'Still has link to block 3');
+            assert.equal(gameState.blocks[0].x, 73, 'Plate 1 same place');
+
+            assert.strictEqual(gameState.blocks[0].group[4], undefined, 'Block 4 deleted');
         });
+
+    });
+
+    QUnit.module('Lockpicker Game Render', hooks => {
+
+        hooks.beforeEach(() => {
+            countInput.value = 3;
+            renderBlocks(3);
+        });
+
+        QUnit.test('renderBlocks() correctly renders internal DOM structure (pins and corners)', assert => {
+            gameState.blocks = [];
+            lock.innerHTML = '';
+
+            renderBlocks(1);
+
+            const plate = lock.querySelector('.plate[data-id="1"]');
+            assert.ok(plate, 'Plate element was created and added to the lock DOM');
+
+            const holes = plate.querySelectorAll('.top-face .hole');
+            assert.strictEqual(holes.length, 7, 'Plate has exactly 7 holes rendered on the top-face');
+
+            const pinHole = plate.querySelector('.pin-hole');
+            assert.ok(pinHole, 'One of the holes is designated as the pin-hole');
+            assert.ok(pinHole.classList.contains('3'), 'The pin-hole is correctly placed at index 3');
+
+            const pinWrapper = pinHole.querySelector('.pin-wrapper');
+            const pin = pinWrapper ? pinWrapper.querySelector('.pin') : null;
+
+            assert.ok(pinWrapper, 'Pin wrapper is rendered inside the pin-hole');
+            assert.ok(pin, 'Pin body is rendered inside the wrapper');
+            assert.ok(pin.querySelector('.pin-cap'), 'Pin cap is rendered inside the pin');
+
+            const expectedCorners = ['tube-tr', 'tube-br', 'tube-bl', 'tube-tl'];
+
+            expectedCorners.forEach(cornerClass => {
+                const corner = plate.querySelector(`.corner-tube.${cornerClass}`);
+                assert.ok(corner, `Corner tube with class '${cornerClass}' was rendered`);
+
+                if (corner) {
+                    // The loop in your code: for (let a = 7.5; a < 90; a += 15)
+                    // Steps: 7.5, 22.5, 37.5, 52.5, 67.5, 82.5 (Exactly 6 iterations)
+                    const panels = corner.querySelectorAll('.tube-panel');
+                    assert.strictEqual(
+                        panels.length,
+                        6,
+                        `Corner '${cornerClass}' contains exactly 6 tube panels`
+                    );
+
+                    assert.ok(
+                        panels[0].style.transform.includes('rotateZ'),
+                        `Panels in '${cornerClass}' have inline transform styles applied`
+                    );
+                }
+            });
+        })
 
     });
 
     QUnit.module('Lockpicker Game Logic - Long Press', hooks => {
         let clock;
 
-        // 1. Setup BEFORE every single test in this module
         hooks.beforeEach(() => {
             clock = sinon.useFakeTimers();
-
-            // It is also highly recommended to hard-reset your gameState here
-            // so previous tests don't leave artifacts behind!
+            countInput.value = 3;
+            renderBlocks(3);
             gameState.activeLinkerId = null;
             gameState.dragState.isDragging = false;
-            if (gameState.blocks[0]) gameState.blocks[0].group = {};
         });
 
-        // 2. Cleanup AFTER every single test (Runs even if assertions fail!)
         hooks.afterEach(() => {
             clock.restore();
         });
 
-        // 3. The actual test
         QUnit.test('cycles through link states on target blocks', async assert => {
             const masterBlock = gameState.blocks[0]; // id 1
             const targetBlock = gameState.blocks[1]; // id 2
@@ -236,6 +256,7 @@
             assert.equal(masterBlock.group[2], undefined, 'Third long press removes the link');
         });
     });
+
 </script>
 </body>
 

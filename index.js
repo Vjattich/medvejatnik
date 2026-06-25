@@ -444,26 +444,56 @@ function renderBlocks(count) {
     lock.innerHTML = '';
     const centerOffset = (count - 1) / 2;
     const spacing = gameState.isMobile ? 55 : 50;
+
     const oldBlocks = new Map(gameState.blocks.map(b => [b.id, b]));
     gameState.blocks = [];
     gameState.activeLinkerId = null;
+
     for (let i = 0; i < count; i++) {
         const id = i + 1;
         const zPos = (centerOffset - i) * spacing;
-        let prevX = oldBlocks.has(id) ? oldBlocks.get(id).x : 0;
+
+        let prevX = 0;
+        let currentGroup = { [id]: 1 };
+
+        const oldBlock = oldBlocks.get(id);
+        if (oldBlock) {
+            prevX = oldBlock.x;
+            const oldGroup = oldBlock.group;
+
+            if (Object.keys(oldGroup).length > 1) {
+                currentGroup = {};
+                for (const key in oldGroup) {
+                    const kid = Number(key);
+                    if (kid <= count) {
+                        currentGroup[kid] = oldGroup[key];
+                    }
+                }
+            } else {
+                currentGroup = oldGroup;
+            }
+        }
+
         const plate = document.createElement('div');
         plate.className = 'plate glow';
         plate.dataset.id = id;
+
         plate.addEventListener('mouseenter', () => {
             if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
             updateHoverPreview(plate);
         });
         plate.addEventListener('mouseleave', () => clearHoverPreview(true));
         plate.addEventListener('touchstart', () => clearHoverPreview(true), {passive: true});
+
         let holesHtml = '';
-        for (let h = 0; h < 7; h++) if (3 === h) {
-            holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
-        } else holesHtml += `<div class="hole ` + h + `"></div>`;
+        for (let h = 0; h < 7; h++) {
+            if (3 === h) {
+                holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
+            } else {
+                holesHtml += `<div class="hole ` + h + `"></div>`;
+            }
+        }
+
         let tubeHtml = '';
         const corners = [
             {class: 'tube-tr', startAngle: 0},
@@ -471,13 +501,14 @@ function renderBlocks(count) {
             {class: 'tube-bl', startAngle: 180},
             {class: 'tube-tl', startAngle: 270}
         ];
+
         corners.forEach(corner => {
             let Ydeg = '-30px';
             if ('tube-tl' === corner.class || 'tube-bl' === corner.class) {
-                Ydeg = '-29px'
+                Ydeg = '-29px';
             }
             if ('tube-tr' === corner.class || 'tube-br' === corner.class) {
-                Ydeg = '-29.5px'
+                Ydeg = '-29.5px';
             }
             tubeHtml += `<div class="corner-tube ${corner.class}">`;
             for (let a = 7.5; a < 90; a += 15) {
@@ -486,9 +517,11 @@ function renderBlocks(count) {
             }
             tubeHtml += '</div>';
         });
+
         plate.innerHTML = ` <div class="front-face"></div> <div class="top-face">${holesHtml}</div> <div class="right-face"></div> <div class="bottom-face"></div> <div class="left-face"></div> ${tubeHtml} `;
         plate.style.transform = `translateZ(${zPos}px) translateX(${prevX}px)`;
         lock.prepend(plate);
+
         gameState.blocks.push({
             id: id,
             x: prevX,
@@ -496,24 +529,13 @@ function renderBlocks(count) {
             el: plate,
             pinWrapper: plate.querySelector('.pin-wrapper'),
             pin: plate.querySelector('.pin'),
-            group: {[id]: 1}
+            group: currentGroup
         });
-        if (plate.querySelector('.pin')) updatePinState(plate.querySelector('.pin'), prevX);
-    }
-    gameState.blocks.forEach(block => {
-        const oldBlock = oldBlocks.get(block.id);
-        if (!oldBlock) return;
-        const oldGroup = oldBlock.group;
-        if (1 >= Object.keys(oldGroup).length) return;
-        const newGroup = {};
-        for (const key in oldGroup) {
-            const kid = Number(key);
-            if (kid <= count) {
-                newGroup[kid] = oldGroup[key];
-            }
+
+        if (plate.querySelector('.pin')) {
+            updatePinState(plate.querySelector('.pin'), prevX)
         }
-        block.group = newGroup;
-    });
+    }
     renderInspectorRow();
 }
 
