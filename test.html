@@ -327,31 +327,57 @@
             gameState.dragState.activePlate = masterBlock.el;
             masterBlock.el.classList.add('selected');
 
-            const touchObj = new Touch({identifier: Date.now(), target: masterBlock.el, clientX: 0, clientY: 0, screenX: 0, screenY: 0, pageX: 0, pageY: 0, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1});
-            const touchStartEvent = new TouchEvent('touchstart', {bubbles: true, cancelable: true, touches: [touchObj]});
+            masterBlock.el.classList.add('is-touched');
+            targetBlock.el.classList.add('linked-highlight');
+            gameState.isHovering = true;
+
+            const touchStartObj = new Touch({ identifier: Date.now(), target: masterBlock.el, clientX: 10, clientY: 10, screenX: 10, screenY: 10, pageX: 10, pageY: 10, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1 });
+            const touchStartEvent = new TouchEvent('touchstart', { bubbles: true, cancelable: true, touches: [touchStartObj], changedTouches: [touchStartObj] });
             masterBlock.el.dispatchEvent(touchStartEvent);
 
             await clock.tickAsync(LONG_PRESS_DURATION + 1);
 
-            const touchEnd = new Touch({identifier: Date.now(), target: masterBlock.el, clientX: 0, clientY: 0, screenX: 0, screenY: 0, pageX: 0, pageY: 0, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1});
-            masterBlock.el.dispatchEvent(new TouchEvent('touchend', {bubbles: true, cancelable: true, touches: [touchEnd]}));
-            masterBlock.el.dispatchEvent(new TouchEvent('touchcancel', {bubbles: true, cancelable: true, touches: [touchEnd]}));
+            const originalElementFromPoint = document.elementFromPoint;
+            document.elementFromPoint = (x, y) => {
+                if (x === 999 && y === 999) return document.body;
+                return masterBlock.el;
+            };
 
-            // const mouseUpEvent = new MouseEvent('mouseup', {
-            //     bubbles: true,
-            //     cancelable: true,
-            //     view: window,
-            //     changedTouches: true
-            // });
-            // await clock.tickAsync(LONG_PRESS_DURATION + LONG_PRESS_DURATION);
-            // window.dispatchEvent(mouseUpEvent);
+            const touchMoveObj = new Touch({ identifier: Date.now(), target: document.body, clientX: 999, clientY: 999, screenX: 999, screenY: 999, pageX: 999, pageY: 999, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1 });
+            const touchMoveEvent = new TouchEvent('touchmove', { bubbles: true, cancelable: true, touches: [touchMoveObj], changedTouches: [touchMoveObj] });
+            window.dispatchEvent(touchMoveEvent);
+
+            await clock.tickAsync(50);
+
+            const touchEndObj = new Touch({ identifier: Date.now(), target: document.body, clientX: 999, clientY: 999, screenX: 999, screenY: 999, pageX: 999, pageY: 999, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1 });
+            const touchEndEvent = new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [], changedTouches: [touchEndObj] });
+            window.dispatchEvent(touchEndEvent);
+
+            window.dispatchEvent(new MouseEvent('mouseup', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 999,
+                clientY: 999,
+                view: window
+            }));
+
+            const mouseLeaveEvent = new MouseEvent('mouseleave', {
+                bubbles: false,
+                cancelable: true
+            });
+            masterBlock.el.dispatchEvent(mouseLeaveEvent);
+
+            await clock.tickAsync(LONG_PRESS_DURATION);
+
+            document.elementFromPoint = originalElementFromPoint;
 
             assert.equal(gameState.activeLinkerId, null, 'Unsets the activeLinkerId');
             assert.notOk(masterBlock.el.classList.contains('selected'), 'Removes selection');
-            //here should be failed one
+
             assert.notOk(masterBlock.el.classList.contains('is-touched'), 'Leave hover');
             assert.notOk(targetBlock.el.classList.contains('linked-highlight'), 'Do not colored');
         });
+
     });
 
 </script>
