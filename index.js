@@ -501,18 +501,18 @@ function renderBlocks(count) {
         if (plate.querySelector('.pin')) updatePinState(plate.querySelector('.pin'), prevX);
     }
     gameState.blocks.forEach(block => {
-        if (oldBlocks.has(block.id)) {
-            let oldGroup = oldBlocks.get(block.id).group;
-            if (!oldGroup.__newGroupRef) {
-                let newSharedGroup = {};
-                Object.keys(oldGroup).forEach(k => {
-                    let kid = parseInt(k);
-                    if (kid <= count) newSharedGroup[kid] = oldGroup[k];
-                });
-                oldGroup.__newGroupRef = newSharedGroup;
+        const oldBlock = oldBlocks.get(block.id);
+        if (!oldBlock) return;
+        const oldGroup = oldBlock.group;
+        if (1 >= Object.keys(oldGroup).length) return;
+        const newGroup = {};
+        for (const key in oldGroup) {
+            const kid = Number(key);
+            if (kid <= count) {
+                newGroup[kid] = oldGroup[key];
             }
-            block.group = oldGroup.__newGroupRef;
         }
+        block.group = newGroup;
     });
     renderInspectorRow();
 }

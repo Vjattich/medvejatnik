@@ -127,6 +127,42 @@
             }, SHORT_PRESS_DURATION + 50);
         });
 
+        QUnit.test('renderBlocks() preserves valid block groups and purges out-of-bound links on re-render', assert => {
+
+            gameState.blocks[0].group[2] = 1;
+            gameState.blocks[0].group[3] = -1;
+
+            // 2. ACTION: Re-render with the SAME number of blocks
+            countInput.value = 4;
+            renderBlocks(4);
+
+            // 3. ASSERT: Groups should be fully retained
+            assert.equal(
+                gameState.blocks[0].group[2],
+                1,
+                'Forward link to Block 2 is preserved after an identical re-render'
+            );
+            assert.equal(
+                gameState.blocks[0].group[3],
+                -1,
+                'Reverse link to Block 3 is preserved after an identical re-render'
+            );
+
+            countInput.value = 3;
+            renderBlocks(3);
+
+            assert.equal(
+                gameState.blocks[0].group[2],
+                1,
+                'Still has link block 2'
+            );
+            assert.strictEqual(
+                gameState.blocks[0].group[3],
+                -1,
+                'Still has link block 3'
+            );
+        });
+
     });
 
     QUnit.module('Lockpicker Game Logic - Long Press', hooks => {
