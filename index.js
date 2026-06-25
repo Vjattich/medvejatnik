@@ -2,6 +2,7 @@
 const lock = document.getElementById('lock'),
     sizeInput = document.getElementById('sizeInput'),
     countInput = document.getElementById('countInput'),
+    controls = document.getElementById('controls'),
     resetBtn = document.getElementById('resetBtn'),
     solveBtn = document.getElementById('solveBtn'),
     btnDecrease = document.getElementById('btnDecreaseBlocks'),
@@ -1090,6 +1091,10 @@ function startTutorial() {
     currentTutorialVersion++;
     runTutorialStep(currentTutorialVersion);
     footer.style.zIndex = '1001';
+    if (gameState.isMobile) {
+        //todo aniamation for this upper
+        controls.style.top = '55%';
+    }
 }
 
 function endTutorial() {
@@ -1104,6 +1109,9 @@ function endTutorial() {
     iconX.style.display = 'none';
     resetBtn.click();
     footer.style.zIndex = '1';
+    if (gameState.isMobile) {
+        controls.style = null;
+    }
 }
 
 async function runTutorialStep(version) {
