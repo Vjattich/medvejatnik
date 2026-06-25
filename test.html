@@ -127,25 +127,36 @@
             }, SHORT_PRESS_DURATION + 50);
         });
 
-        QUnit.test('renderBlocks() preserves valid block groups and purges out-of-bound links on re-render', assert => {
+        QUnit.test('renderBlocks() preserves valid block groups, purges out-of-bound links, and retains coordinates on re-render', assert => {
 
             gameState.blocks[0].group[2] = 1;
             gameState.blocks[0].group[3] = -1;
 
-            // 2. ACTION: Re-render with the SAME number of blocks
+            gameState.blocks[0].x = 73;     // Move Plate 1
+            gameState.blocks[2].x = -36.5;  // Move Plate 3
+
             countInput.value = 4;
             renderBlocks(4);
 
-            // 3. ASSERT: Groups should be fully retained
             assert.equal(
                 gameState.blocks[0].group[2],
                 1,
-                'Forward link to Block 2 is preserved after an identical re-render'
+                'Block 2 is preserved after expanding count'
             );
             assert.equal(
                 gameState.blocks[0].group[3],
                 -1,
-                'Reverse link to Block 3 is preserved after an identical re-render'
+                'Block 3 is preserved after expanding count'
+            );
+            assert.equal(
+                gameState.blocks[0].x,
+                73,
+                'Plate 1 x-coordinate is preserved after expanding count'
+            );
+            assert.equal(
+                gameState.blocks[2].x,
+                -36.5,
+                'Plate 3 x-coordinate is preserved after expanding count'
             );
 
             countInput.value = 3;
@@ -160,6 +171,16 @@
                 gameState.blocks[0].group[3],
                 -1,
                 'Still has link block 3'
+            );
+            assert.equal(
+                gameState.blocks[0].x,
+                73,
+                'Plate 1 x-coordinate is STILL preserved after shrinking count'
+            );
+            assert.equal(
+                gameState.blocks[2].x,
+                -36.5,
+                'Plate 3 x-coordinate is STILL preserved after shrinking count'
             );
         });
 
