@@ -26,7 +26,8 @@ const lock = document.getElementById('lock'),
     DRAG_THRESHOLD = 5,
     HOLE_SPACING = 36.5,
     SOLVE_TIMEOUT_MS = 5000,
-    MAX_PLATES = 8
+    MAX_PLATES = 8,
+    ONE_OVER_HOLE_SPACING = 1 / HOLE_SPACING
 ;
 
 let currentSolution = null;
@@ -334,17 +335,21 @@ function setInitialScale() {
 
 setInitialScale();
 
-function triggerGamepadRumble(durationInMs) {
+
+function vibrate(duration) {
+
+    if(navigator.vibrate) navigator.vibrate(duration);
+
     if (!navigator.getGamepads) return;
     const gamepads = navigator.getGamepads();
     for (let gamepad of gamepads) if (gamepad && gamepad.vibrationActuator && typeof gamepad.vibrationActuator.playEffect === 'function') {
         gamepad.vibrationActuator.playEffect("dual-rumble", {
             startDelay: 0,
-            duration: durationInMs,
+            //for gamepads its increesad
+            duration: duration * 4,
             weakMagnitude: 1.0,
             strongMagnitude: 0.0
-        }).catch(error => {
-        });
+        }).catch(error => {});
         break;
     }
 }
@@ -352,27 +357,31 @@ function triggerGamepadRumble(durationInMs) {
 function updatePinState(pin, currentX) {
 
     const
-        holeIndex = Math.round(currentX / HOLE_SPACING),
-        distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING)),
-        isOverAnyHole = distanceToHole < 3,
-        wasOverHole = pin.dataset.wasOverHole === 'true';
+        holeIndex = Math.round(currentX * ONE_OVER_HOLE_SPACING),
+        distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING));
 
-    if (isOverAnyHole !== wasOverHole) {
-        pin.dataset.wasOverHole = isOverAnyHole;
-
-        if (isOverAnyHole) {
-            if (navigator.vibrate) navigator.vibrate(15);
-            triggerGamepadRumble(60);
+    if (distanceToHole >= 3) {
+        if (pin.dataset.wasOverHole !== 'false') {
+            pin.dataset.wasOverHole = 'false';
         }
+
+        const targetTransform = `translateZ(${PIN_UNDER}px)`;
+        if (pin.style.transform !== targetTransform) {
+            pin.style.transform = targetTransform;
+        }
+        return;
     }
 
-    const targetZ = isOverAnyHole
-        ? (0 === holeIndex ? PIN_RAISED : PIN_MIDDLE)
-        : PIN_UNDER;
+    const wasOverHole = pin.dataset.wasOverHole === 'true';
 
-    if (pin._lastZ !== targetZ) {
-        pin.style.transform = `translateZ(${targetZ}px)`;
-        pin._lastZ = targetZ;
+    if (!wasOverHole) {
+        pin.dataset.wasOverHole = 'true';
+        vibrate(15)
+    }
+
+    const targetTransform = `translateZ(${(holeIndex === 0) ? PIN_RAISED : PIN_MIDDLE}px)`;
+    if (pin.style.transform !== targetTransform) {
+        pin.style.transform = targetTransform;
     }
 }
 
@@ -755,7 +764,6 @@ function handleDragMove(e) {
     if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length || gameState.activeLinkerId) return;
     gameState.dragState.hasMoved = true;
     let clientX = getClientX(e);
-    debugger
     if (Math.abs(clientX - gameState.dragState.startInputX) > DRAG_THRESHOLD) {
         gameState.dragState.isDragging = true;
         clearTimeout(gameState.dragState.longPressTimer);

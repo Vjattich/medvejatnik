@@ -108,16 +108,46 @@
         });
     });
 
+    //todo improve test
     QUnit.module('Lockpicker Game Logic - Pin State (updatePinState)', hooks => {
         let pin;
         let vibrateStub;
         let rumbleStub;
         let rumbleWasGlobal = false;
 
-        hooks.beforeEach(() => {
+        // Cache the native function once at module scope so it can be restored
+        const originalElementFromPoint = document.elementFromPoint;
 
+        hooks.beforeEach(() => {
+            // --- CENTRALIZED CLEANUP & STATE RESET ---
+            // 1. Restore any native DOM methods mocked by previous tests
+            document.elementFromPoint = originalElementFromPoint;
+
+            // 2. Ensure clean drag/game state before each test
+            gameState.dragState = {
+                activePlate: null,
+                startInputX: 0,
+                movingGroup: [],
+                isDragging: false,
+                longPressTimer: null,
+                hasMoved: false,
+            };
+            gameState.activeLinkerId = null;
+
+            // 3. Reset blocks (renderBlocks recreates gameState.blocks safely)
+            countInput.value = 3;
+            renderBlocks();
+            gameState.blocks.forEach(function (block) {
+                block.x = 0;
+                block.group = {[block.id]: 1};
+                block.pin.dataset.wasOverHole = "false";
+                block.pin.style.transform = `translateZ(${PIN_RAISED}px)`;
+            });
+
+            // 4. Initialize test DOM elements for isolated tests
             pin = document.createElement('div');
 
+            // 5. Setup Stubs
             if (typeof navigator.vibrate === 'function') {
                 vibrateStub = sinon.stub(navigator, 'vibrate');
             }
@@ -142,8 +172,7 @@
 
             updatePinState(pin, HOLE_SPACING / 2);
 
-            //todo undenfind
-            assert.equal(pin.dataset.wasOverHole, undefined, 'Updates dataset.wasOverHole to string "false"');
+            assert.equal(pin.dataset.wasOverHole, "false", 'Updates dataset.wasOverHole to string "false"');
             assert.ok(pin.style.transform.includes(String(PIN_UNDER)), `Pushes pin to the PIN_UNDER state (${PIN_UNDER}px)`);
 
             if (vibrateStub) assert.ok(vibrateStub.notCalled, 'Does not trigger mobile vibration');
@@ -178,9 +207,90 @@
 
             updatePinState(pin, 3.0);
 
-            //todo undenfind
-            assert.strictEqual(pin.dataset.wasOverHole, undefined, 'A distance of exactly 3px evaluates as outside the hole');
+            assert.strictEqual(pin.dataset.wasOverHole, "false", 'A distance of exactly 3px evaluates as outside the hole');
             assert.ok(pin.style.transform.includes(String(under)), 'Pin falls to the PIN_UNDER state');
+        });
+
+        QUnit.test('Pin state drops to PIN_UNDER instantly and rises to PIN_MIDDLE/RAISED after timeout in applySingleMove', assert => {
+
+            const done = assert.async();
+
+            const block = gameState.blocks[0];
+
+            applySingleMove({plate: block.id, direction: 'right'}, false);
+
+            // 3. Verify immediate state
+            assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin is instantly pushed to PIN_UNDER immediately after applySingleMove is called');
+
+            // 4. Verify delayed state
+            setTimeout(() => {
+                assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), 'Pin evaluates new position and springs up to PIN_MIDDLE after the 200ms timeout');
+                done();
+            }, 250);
+        });
+
+        QUnit.test('Pin state updates correctly during drag sequence using actual events (mousedown, mousemove, mouseup)', assert => {
+            const block = gameState.blocks[0];
+
+            let clientX = 100;
+            let scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
+
+            block.el.dispatchEvent(new MouseEvent('mousedown', {
+                clientX: clientX,
+                bubbles: true
+            }));
+
+            assert.equal(gameState.dragState.activePlate, block.el, 'Mousedown successfully initializes activePlate');
+            assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), 'Pin remains raised immediately on drag start');
+
+            let halfX = clientX + (HOLE_SPACING / 2) * scale;
+            document.dispatchEvent(new MouseEvent('mousemove', {
+                clientX: halfX,
+                bubbles: true
+            }));
+
+            assert.strictEqual(block.pin.dataset.wasOverHole, "false", 'Pin evaluates as outside hole during drag halfway');
+            assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin is pushed to PIN_UNDER during the half move');
+
+            let fullX = clientX + (HOLE_SPACING) * scale;
+            document.dispatchEvent(new MouseEvent('mousemove', {
+                clientX: fullX,
+                bubbles: true
+            }));
+
+            assert.strictEqual(block.pin.dataset.wasOverHole, "true", 'Pin evaluates as over hole when drag reaches next hole');
+            assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), 'Pin pops up to PIN_MIDDLE at next hole index');
+
+            document.elementFromPoint = () => block.el;
+            window.dispatchEvent(new MouseEvent('mouseup', {
+                bubbles: true,
+                cancelable: true,
+                clientX: fullX,
+                view: window
+            }));
+
+            assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), 'Pin state is retained stably after mouseup');
+            assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging cleanly resets to false after drop');
+
+            block.el.dispatchEvent(new MouseEvent('mousedown', {
+                clientX: HOLE_SPACING,
+                bubbles: true
+            }));
+
+            document.dispatchEvent(new MouseEvent('mousemove', {
+                clientX: -HOLE_SPACING,
+                bubbles: true
+            }));
+
+            window.dispatchEvent(new MouseEvent('mouseup', {
+                bubbles: true,
+                cancelable: true,
+                clientX: -HOLE_SPACING,
+                view: window
+            }));
+
+            assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), 'Pin state PIN_RAISED drag back');
+            assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging cleanly resets to false after drop');
         });
     });
 
