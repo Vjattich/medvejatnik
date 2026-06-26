@@ -151,21 +151,10 @@
             if (typeof navigator.vibrate === 'function') {
                 vibrateStub = sinon.stub(navigator, 'vibrate');
             }
-
-            if (typeof window.triggerGamepadRumble === 'function') {
-                rumbleStub = sinon.stub(window, 'triggerGamepadRumble');
-                rumbleWasGlobal = true;
-            } else {
-                window.triggerGamepadRumble = sinon.stub();
-                rumbleStub = window.triggerGamepadRumble;
-            }
         });
 
         hooks.afterEach(() => {
             sinon.restore();
-            if (!rumbleWasGlobal && window.triggerGamepadRumble === rumbleStub) {
-                delete window.triggerGamepadRumble;
-            }
         });
 
         QUnit.test('Updates state correctly when NOT over any hole', assert => {

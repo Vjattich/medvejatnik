@@ -631,15 +631,13 @@ function longPress(clickedId) {
                         if (b) if (1 === curBlock.group[id]) b.el.classList.add('linked-highlight'); else b.el.classList.add('linked-highlight-reverse');
                     }
                 });
-                if (navigator.vibrate) navigator.vibrate(50);
-                triggerGamepadRumble(60);
+                vibrate(15)
             } else if (gameState.activeLinkerId === curBlock.id) {
                 gameState.activeLinkerId = null;
                 gameState.dragState.activePlate.classList.remove('selected');
                 gameState.lastAction = 'deselect';
                 updateHoverPreview(gameState.dragState.activePlate);
-                if (navigator.vibrate) navigator.vibrate(50);
-                triggerGamepadRumble(60);
+                vibrate(15)
                 renderInspectorRow();
             } else {
                 let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
@@ -656,8 +654,7 @@ function longPress(clickedId) {
                     masterBlock.group[curBlock.id] = 1;
                     gameState.dragState.activePlate.classList.add('linked-highlight');
                 }
-                if (navigator.vibrate) navigator.vibrate(50);
-                triggerGamepadRumble(60);
+                vibrate(15)
             }
         }
     }, gameState.activeLinkerId ? SHORT_PRESS_DURATION : LONG_PRESS_DURATION);
@@ -728,16 +725,17 @@ function handleDragStart(e) {
     gameState.dragState.movingGroup = [];
     updateHoverPreview(gameState.dragState.activePlate);
     const clickedId = parseInt(clickedPlate.dataset.id);
-    let draggedBlock = gameState.blocks.find(b => b.id === clickedId);
-    if (!draggedBlock) return;
-    let draggedBlockPolarity = draggedBlock.group[draggedBlock.id] || 1;
-    Object.keys(draggedBlock.group).forEach(idStr => {
-        let id = parseInt(idStr);
-        let rawDir = draggedBlock.group[id];
-        let relativeDir = rawDir * draggedBlockPolarity;
-        let b = gameState.blocks.find(x => x.id === id);
+    let clickedBlock = gameState.blocks.find(b => b.id === clickedId);
+    if (!clickedBlock) return;
+    //let draggedBlockPolarity = clickedBlock.group[clickedBlock.id] || 1;
+    Object.keys(clickedBlock.group).forEach(idStr => {
+        let id = parseInt(idStr),
+            dir = clickedBlock.group[id],
+            //direction depending of main one block (usually number (1) * child dir)
+            //relativeDir = draggedBlockPolarity * rawDir,
+            b = gameState.blocks.find(x => x.id === id);
         if (b) {
-            gameState.dragState.movingGroup.push({block: b, dir: relativeDir, initialX: b.x});
+            gameState.dragState.movingGroup.push({block: b, dir: dir, initialX: b.x});
             b.el.style.transition = 'none';
             if (b.pinWrapper) b.pinWrapper.style.transition = 'none';
         }
@@ -768,10 +766,10 @@ function handleDragMove(e) {
         gameState.dragState.isDragging = true;
         clearTimeout(gameState.dragState.longPressTimer);
     }
-    let scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
-    let rawDeltaX = (clientX - gameState.dragState.startInputX) / scale;
-    let minDeltaX = -Infinity;
-    let maxDeltaX = Infinity;
+    let scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1,
+        rawDeltaX = (clientX - gameState.dragState.startInputX) / scale,
+        minDeltaX = -Infinity,
+        maxDeltaX = Infinity;
     gameState.dragState.movingGroup.forEach(item => {
         let limitLeft = 1 === item.dir ? -120 - item.initialX : item.initialX - 120;
         let limitRight = 1 === item.dir ? 120 - item.initialX : item.initialX + 120;
