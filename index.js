@@ -128,37 +128,6 @@ function solveInWorker() {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-function applySingleMove(move, reverse = false) {
-    const primaryBlock = gameState.blocks[move.plate - 1];
-    let stepShift = ("left" === move.direction) ? -HOLE_SPACING : HOLE_SPACING;
-    if (true === reverse) stepShift *= -1;
-    let draggedBlockPolarity = primaryBlock.group[primaryBlock.id] || 1;
-    Object.keys(primaryBlock.group).forEach(idStr => {
-        const id = parseInt(idStr);
-        const relativeDir = (primaryBlock.group[id] * draggedBlockPolarity);
-        const b = gameState.blocks.find(x => x.id === id);
-        if (b) {
-            let newX = b.x + (stepShift * relativeDir);
-            const maxBound = 3 * HOLE_SPACING;
-            if (newX > maxBound) newX = maxBound;
-            if (newX < -maxBound) newX = -maxBound;
-            b.x = newX;
-            b.el.style.transition = 'transform 0.2s ease-out';
-            b.el.style.transform = `translateZ(${b.z}px) translateX(${newX}px)`;
-            if (b.pinWrapper && b.pin) {
-                b.pinWrapper.style.transition = 'transform 0.2s ease-out';
-                b.pinWrapper.style.transform = `translateX(${-newX}px)`;
-                b.pin.style.transition = 'transform 0.05s ease-in';
-                b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
-                setTimeout(() => {
-                    b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                    updatePinState(b.pin, newX);
-                }, 200);
-            }
-        }
-    });
-}
-
 function jumpToStep(targetIndex) {
     targetIndex = targetIndex - 1;
     if (null === currentSolution || isPlaying) return;
@@ -279,6 +248,7 @@ function renderSolutionList() {
 }
 
 squashMovesCheck.addEventListener('change', renderSolutionList);
+
 solveBtn.addEventListener('click', async () => {
     const setup = compactSetup();
     if (setup.start.every(v => v === 0)) {
@@ -314,7 +284,6 @@ solveBtn.addEventListener('click', async () => {
         if (!isPlaying) solveBtn.disabled = false;
     }
 });
-
 playBtn.addEventListener('click', async () => {
     if (null === currentSolution || currentStepIndex >= currentSolution.length) return;
     if (isPlaying) {
@@ -556,6 +525,7 @@ function renderBlocks() {
 }
 
 sizeInput.addEventListener('input', (e) => document.documentElement.style.setProperty('--block-scale', e.target.value));
+
 //todo need event here or can manual call renderBlocks(),clearSolutionUI()
 countInput.addEventListener('input', (e) => {
     renderBlocks()
@@ -577,7 +547,6 @@ btnIncrease.addEventListener('click', () => {
         countInput.dispatchEvent(new Event('input'));
     }
 });
-
 function toggleExpandList(forceState) {
     const isExpanded = undefined !== forceState ? forceState : solutionList.classList.toggle('is-expanded');
     if (undefined !== forceState) solutionList.classList.toggle('is-expanded', forceState);
@@ -617,6 +586,7 @@ function toggleExpandList(forceState) {
 }
 
 expandBtn.addEventListener('click', () => toggleExpandList());
+
 squashMovesCheck.addEventListener('change', () => {
     renderSolutionList();
     if (solutionList.classList.contains('is-expanded')) toggleExpandList(true);
@@ -632,7 +602,6 @@ resetBtn.addEventListener('click', () => {
     renderBlocks();
 });
 renderBlocks();
-
 function getClientX(e) {
     return e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
 }
@@ -685,6 +654,37 @@ function longPress(clickedId) {
     }, gameState.activeLinkerId ? SHORT_PRESS_DURATION : LONG_PRESS_DURATION);
 }
 
+function applySingleMove(move, reverse = false) {
+    const primaryBlock = gameState.blocks[move.plate - 1];
+    let stepShift = ("left" === move.direction) ? -HOLE_SPACING : HOLE_SPACING;
+    if (true === reverse) stepShift *= -1;
+    let draggedBlockPolarity = primaryBlock.group[primaryBlock.id] || 1;
+    Object.keys(primaryBlock.group).forEach(idStr => {
+        const id = parseInt(idStr);
+        const relativeDir = (primaryBlock.group[id] * draggedBlockPolarity);
+        const b = gameState.blocks.find(x => x.id === id);
+        if (b) {
+            let newX = b.x + (stepShift * relativeDir);
+            const maxBound = 3 * HOLE_SPACING;
+            if (newX > maxBound) newX = maxBound;
+            if (newX < -maxBound) newX = -maxBound;
+            b.x = newX;
+            b.el.style.transition = 'transform 0.2s ease-out';
+            b.el.style.transform = `translateZ(${b.z}px) translateX(${newX}px)`;
+            if (b.pinWrapper && b.pin) {
+                b.pinWrapper.style.transition = 'transform 0.2s ease-out';
+                b.pinWrapper.style.transform = `translateX(${-newX}px)`;
+                b.pin.style.transition = 'transform 0.05s ease-in';
+                b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
+                setTimeout(() => {
+                    b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    updatePinState(b.pin, newX);
+                }, 200);
+            }
+        }
+    });
+}
+
 function handleDragStart(e) {
     if (e.touches) gameState.lastTouchTime = Date.now();
     if (e.touches && 2 <= e.touches.length) {
@@ -714,11 +714,11 @@ function handleDragStart(e) {
     if (e.type === 'mousedown') e.preventDefault();
     if (currentSolution) clearSolutionUI();
     gameState.dragState.activePlate = clickedPlate;
-    updateHoverPreview(gameState.dragState.activePlate);
     gameState.dragState.startInputX = getClientX(e);
     gameState.dragState.isDragging = false;
-    const clickedId = parseInt(clickedPlate.dataset.id);
     gameState.dragState.movingGroup = [];
+    updateHoverPreview(gameState.dragState.activePlate);
+    const clickedId = parseInt(clickedPlate.dataset.id);
     let draggedBlock = gameState.blocks.find(b => b.id === clickedId);
     if (!draggedBlock) return;
     let draggedBlockPolarity = draggedBlock.group[draggedBlock.id] || 1;
@@ -755,6 +755,7 @@ function handleDragMove(e) {
     if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length || gameState.activeLinkerId) return;
     gameState.dragState.hasMoved = true;
     let clientX = getClientX(e);
+    debugger
     if (Math.abs(clientX - gameState.dragState.startInputX) > DRAG_THRESHOLD) {
         gameState.dragState.isDragging = true;
         clearTimeout(gameState.dragState.longPressTimer);
@@ -823,6 +824,7 @@ function handleDragEnd(e) {
     }
     gameState.dragState.activePlate = null;
     gameState.dragState.movingGroup = [];
+    gameState.dragState.isDragging = false;
     gameState.lastAction = gameState.lastAction === 'deselectDragEnd' ? gameState.lastAction : 'handleDragEnd';
     if (e && 'mouseup' === e.type) {
         if ((Date.now() - (gameState.lastTouchTime || 0) < 500) || gameState.lastAction === 'deselectDragEnd') return;
