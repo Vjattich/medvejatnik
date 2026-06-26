@@ -381,34 +381,30 @@ function triggerGamepadRumble(durationInMs) {
 }
 
 function updatePinState(pin, currentX) {
-    let holeIndex = Math.round(currentX / HOLE_SPACING);
-    let distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING));
-    let isOverAnyHole = 3 > distanceToHole;
-    let isCorrectHole = (0 === holeIndex);
-    let wasOverHole = pin.dataset.wasOverHole === 'true';
-    if (isOverAnyHole && !wasOverHole) {
-        if (navigator.vibrate) navigator.vibrate(15);
-        triggerGamepadRumble(60);
-    }
-    pin.dataset.wasOverHole = isOverAnyHole;
-    if (false === isOverAnyHole) {
-        pin.style.transform = `translateZ(${PIN_UNDER}px)`;
-        return;
-    }
-    if (true === isCorrectHole) {
-        pin.style.transform = `translateZ(${PIN_RAISED}px)`;
-        return;
-    }
-    if (true === isOverAnyHole) {
-        pin.style.transform = `translateZ(${PIN_MIDDLE}px)`;
 
-    }
-}
+    const
+        holeIndex = Math.round(currentX / HOLE_SPACING),
+        distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING)),
+        isOverAnyHole = distanceToHole < 3,
+        wasOverHole = pin.dataset.wasOverHole === 'true';
 
-function renderPinBody() {
-    let sidesHtml = '';
-    for (let s = 0; s < 16; s++) sidesHtml += `<div class="pin-side" style="transform: rotateZ(${s * 22.5}deg) translateY(-6px) rotateX(90deg)"></div>`;
-    return `<div class="pin-body">${sidesHtml}<div></div></div>`;
+    if (isOverAnyHole !== wasOverHole) {
+        pin.dataset.wasOverHole = isOverAnyHole;
+
+        if (isOverAnyHole) {
+            if (navigator.vibrate) navigator.vibrate(15);
+            triggerGamepadRumble(60);
+        }
+    }
+
+    const targetZ = isOverAnyHole
+        ? (0 === holeIndex ? PIN_RAISED : PIN_MIDDLE)
+        : PIN_UNDER;
+
+    if (pin._lastZ !== targetZ) {
+        pin.style.transform = `translateZ(${targetZ}px)`;
+        pin._lastZ = targetZ;
+    }
 }
 
 function updateHoverPreview(plate) {
@@ -446,6 +442,13 @@ function createPlate(id, prevX, zPos) {
     const plate = document.createElement('div');
     plate.className = 'plate glow';
     plate.dataset.id = id;
+
+
+    const renderPinBody = function () {
+        let sidesHtml = '';
+        for (let s = 0; s < 16; s++) sidesHtml += `<div class="pin-side" style="transform: rotateZ(${s * 22.5}deg) translateY(-6px) rotateX(90deg)"></div>`;
+        return `<div class="pin-body">${sidesHtml}<div></div></div>`;
+    }
 
     let holesHtml = '';
     for (let h = 0; h < 7; h++) {

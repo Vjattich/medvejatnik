@@ -108,6 +108,82 @@
         });
     });
 
+    QUnit.module('Lockpicker Game Logic - Pin State (updatePinState)', hooks => {
+        let pin;
+        let vibrateStub;
+        let rumbleStub;
+        let rumbleWasGlobal = false;
+
+        hooks.beforeEach(() => {
+
+            pin = document.createElement('div');
+
+            if (typeof navigator.vibrate === 'function') {
+                vibrateStub = sinon.stub(navigator, 'vibrate');
+            }
+
+            if (typeof window.triggerGamepadRumble === 'function') {
+                rumbleStub = sinon.stub(window, 'triggerGamepadRumble');
+                rumbleWasGlobal = true;
+            } else {
+                window.triggerGamepadRumble = sinon.stub();
+                rumbleStub = window.triggerGamepadRumble;
+            }
+        });
+
+        hooks.afterEach(() => {
+            sinon.restore();
+            if (!rumbleWasGlobal && window.triggerGamepadRumble === rumbleStub) {
+                delete window.triggerGamepadRumble;
+            }
+        });
+
+        QUnit.test('Updates state correctly when NOT over any hole', assert => {
+
+            updatePinState(pin, HOLE_SPACING / 2);
+
+            //todo undenfind
+            assert.equal(pin.dataset.wasOverHole, undefined, 'Updates dataset.wasOverHole to string "false"');
+            assert.ok(pin.style.transform.includes(String(PIN_UNDER)), `Pushes pin to the PIN_UNDER state (${PIN_UNDER}px)`);
+
+            if (vibrateStub) assert.ok(vibrateStub.notCalled, 'Does not trigger mobile vibration');
+            if (rumbleStub) assert.ok(rumbleStub.notCalled, 'Does not trigger gamepad rumble');
+        });
+
+        QUnit.test('Updates state correctly for the CORRECT hole (index 0)', assert => {
+
+            updatePinState(pin, 1);
+
+            assert.strictEqual(pin.dataset.wasOverHole, 'true', 'Updates dataset.wasOverHole to string "true"');
+            assert.ok(pin.style.transform.includes(String(PIN_RAISED)), `Raises pin to the PIN_RAISED state (${PIN_RAISED}px)`);
+
+            if (vibrateStub && vibrateStub.called) {
+                assert.ok(vibrateStub.calledWith(15), 'vibration for 15ms');
+            }
+            if (rumbleStub && rumbleStub.called) {
+                assert.ok(rumbleStub.calledWith(60), 'rumble for 60ms');
+            }
+        });
+
+        QUnit.test('Updates state correctly for an INCORRECT hole (index > 0)', assert => {
+
+            updatePinState(pin, HOLE_SPACING);
+
+            assert.strictEqual(pin.dataset.wasOverHole, 'true', 'Updates dataset.wasOverHole to string "true"');
+            assert.ok(pin.style.transform.includes(String(PIN_MIDDLE)), `Moves pin to the PIN_MIDDLE state (${PIN_MIDDLE}px)`);
+        });
+
+        QUnit.test('Tolerance boundaries are strictly enforced (exactly 3px)', assert => {
+            const under = PIN_UNDER;
+
+            updatePinState(pin, 3.0);
+
+            //todo undenfind
+            assert.strictEqual(pin.dataset.wasOverHole, undefined, 'A distance of exactly 3px evaluates as outside the hole');
+            assert.ok(pin.style.transform.includes(String(under)), 'Pin falls to the PIN_UNDER state');
+        });
+    });
+
     QUnit.module('Lockpicker Game Logic', hooks => {
 
         hooks.beforeEach(() => {
