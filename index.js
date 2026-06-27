@@ -721,10 +721,11 @@ function applySingleMove(move, reverse = false) {
             relativeDir = (primaryBlock.group[id]),
             b = gameState.blocks.find(x => x.id === id);
         if (!b) return;
-        let newX = b.x + (stepShift * relativeDir);
-        if (newX > MAX_BOUND) newX = MAX_BOUND;
-        if (newX < -MAX_BOUND) newX = -MAX_BOUND;
-        updateBlockState(b, {x: newX, transition: 'transform 0.2s ease-out', pinTime: 200});
+        updateBlockState(b, {
+            x: Math.max(-MAX_BOUND, Math.min(b.x + stepShift * relativeDir, MAX_BOUND)),
+            transition: 'transform 0.2s ease-out',
+            pinTime: 200
+        });
     });
 }
 
