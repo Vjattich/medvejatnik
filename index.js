@@ -356,7 +356,11 @@ function vibrate(duration) {
 }
 
 function updateSinglePinMove(b, outTime) {
-    updatePinState(b, {hidePin: true, wrapperTransition: 'transform 0.2s ease-out', pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
+    updatePinState(b, {
+        hidePin: true,
+        wrapperTransition: 'transform 0.2s ease-out',
+        pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+    });
     setTimeout(() => {
         updatePinState(b, {pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
     }, outTime);
@@ -721,11 +725,14 @@ function applySingleMove(move, reverse = false) {
             relativeDir = (primaryBlock.group[id]),
             b = gameState.blocks.find(x => x.id === id);
         if (!b) return;
-        updateBlockState(b, {
-            x: Math.max(-MAX_BOUND, Math.min(MAX_BOUND, b.x + stepShift * relativeDir)),
-            transition: 'transform 0.2s ease-out',
-            pinTime: 200
-        });
+        updateBlockState(
+            b,
+            {
+                x: Math.max(-MAX_BOUND, Math.min(MAX_BOUND, b.x + stepShift * relativeDir)),
+                transition: 'transform 0.2s ease-out',
+                pinTime: 200
+            }
+        );
     });
 }
 
@@ -1285,7 +1292,11 @@ async function runTutorialStep(version) {
                     let progress = i / totalFrames,
                         offset = Math.sin(progress * Math.PI * 2) * maxLimit;
                     [{b: p1, dir: 1}, {b: p2, dir: 1}, {b: p3, dir: -1}].forEach(item => {
-                        updateBlockState(item.b, {x: offset * item.dir, transition: 'none', pinTransition: 'transform 0.03s ease-out'})
+                        updateBlockState(item.b, {
+                            x: offset * item.dir,
+                            transition: 'none',
+                            pinTransition: 'transform 0.03s ease-out'
+                        })
                     });
 
                     await sleep(16);
