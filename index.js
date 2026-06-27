@@ -722,7 +722,7 @@ function applySingleMove(move, reverse = false) {
             b = gameState.blocks.find(x => x.id === id);
         if (!b) return;
         updateBlockState(b, {
-            x: Math.max(-MAX_BOUND, Math.min(b.x + stepShift * relativeDir, MAX_BOUND)),
+            x: Math.max(-MAX_BOUND, Math.min(MAX_BOUND, b.x + stepShift * relativeDir)),
             transition: 'transform 0.2s ease-out',
             pinTime: 200
         });
