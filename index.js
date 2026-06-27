@@ -677,16 +677,14 @@ function applySingleMove(move, reverse = false) {
             b.x = newX;
             b.el.style.transition = 'transform 0.2s ease-out';
             b.el.style.transform = `translateZ(${b.z}px) translateX(${newX}px)`;
-            if (b.pinWrapper && b.pin) {
-                b.pinWrapper.style.transition = 'transform 0.2s ease-out';
-                b.pinWrapper.style.transform = `translateX(${-newX}px)`;
-                b.pin.style.transition = 'transform 0.05s ease-in';
-                b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
-                setTimeout(() => {
-                    b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                    updatePinState(b.pin, newX);
-                }, 200);
-            }
+            b.pinWrapper.style.transition = 'transform 0.2s ease-out';
+            b.pinWrapper.style.transform = `translateX(${-newX}px)`;
+            b.pin.style.transition = 'transform 0.05s ease-in';
+            b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
+            setTimeout(() => {
+                b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                updatePinState(b.pin, newX);
+            }, 200);
         }
     });
 }
@@ -702,10 +700,8 @@ function handleDragStart(e) {
             gameState.dragState.movingGroup.forEach(item => {
                 item.block.x = item.initialX;
                 item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${item.initialX}px)`;
-                if (item.block.pinWrapper && item.block.pin) {
-                    item.block.pinWrapper.style.transform = `translateX(${-item.initialX}px)`;
-                    updatePinState(item.block.pin, item.initialX);
-                }
+                item.block.pinWrapper.style.transform = `translateX(${-item.initialX}px)`;
+                updatePinState(item.block.pin, item.initialX);
             });
             clearHoverPreview(true);
             gameState.dragState.activePlate = null;
@@ -737,7 +733,7 @@ function handleDragStart(e) {
         if (b) {
             gameState.dragState.movingGroup.push({block: b, dir: dir, initialX: b.x});
             b.el.style.transition = 'none';
-            if (b.pinWrapper) b.pinWrapper.style.transition = 'none';
+            b.pinWrapper.style.transition = 'none';
         }
     });
     gameState.lastAction = 'handleDragStart';
@@ -783,10 +779,8 @@ function handleDragMove(e) {
         let newX = item.initialX + (deltaX * item.dir);
         item.currentX = newX;
         item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${newX}px)`;
-        if (item.block.pinWrapper && item.block.pin) {
-            item.block.pinWrapper.style.transform = `translateX(${-newX}px)`;
-            updatePinState(item.block.pin, newX);
-        }
+        item.block.pinWrapper.style.transform = `translateX(${-newX}px)`;
+        updatePinState(item.block.pin, newX);
     });
     gameState.lastAction = 'handleDragMove';
 }
@@ -821,11 +815,9 @@ function handleDragEnd(e) {
             item.block.x = finalX;
             item.block.el.style.transition = 'transform 0.2s ease-out';
             item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${finalX}px)`;
-            if (item.block.pinWrapper && item.block.pin) {
-                item.block.pinWrapper.style.transition = 'transform 0.2s ease-out';
-                item.block.pinWrapper.style.transform = `translateX(${-finalX}px)`;
-                updatePinState(item.block.pin, finalX);
-            }
+            item.block.pinWrapper.style.transition = 'transform 0.2s ease-out';
+            item.block.pinWrapper.style.transform = `translateX(${-finalX}px)`;
+            updatePinState(item.block.pin, finalX);
         });
     }
     gameState.dragState.activePlate = null;
@@ -1221,16 +1213,14 @@ async function runTutorialStep(version) {
                     b.x = targetX;
                     b.el.style.transition = 'transform 0.5s ease';
                     b.el.style.transform = `translateZ(${b.z}px) translateX(${targetX}px)`;
-                    if (b.pinWrapper && b.pin) {
-                        b.pinWrapper.style.transition = 'transform 0.5s ease';
-                        b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
-                        b.pin.style.transition = 'transform 0.1s ease-in';
-                        b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
-                        setTimeout(() => {
-                            b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                            updatePinState(b.pin, targetX);
-                        }, 400);
-                    }
+                    b.pinWrapper.style.transition = 'transform 0.5s ease';
+                    b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
+                    b.pin.style.transition = 'transform 0.1s ease-in';
+                    b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
+                    setTimeout(() => {
+                        b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                        updatePinState(b.pin, targetX);
+                    }, 400);
                 });
                 pIndex++;
                 await sleep(1500);
@@ -1239,16 +1229,14 @@ async function runTutorialStep(version) {
                 b.x = 0;
                 b.el.style.transition = 'transform 0.5s ease';
                 b.el.style.transform = `translateZ(${b.z}px) translateX(0px)`;
-                if (b.pinWrapper && b.pin) {
-                    b.pinWrapper.style.transition = 'transform 0.5s ease';
-                    b.pinWrapper.style.transform = `translateX(0px)`;
-                    b.pin.style.transition = 'transform 0.1s ease-in';
-                    b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
-                    setTimeout(() => {
-                        b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                        updatePinState(b.pin, 0);
-                    }, 400);
-                }
+                b.pinWrapper.style.transition = 'transform 0.5s ease';
+                b.pinWrapper.style.transform = `translateX(0px)`;
+                b.pin.style.transition = 'transform 0.1s ease-in';
+                b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
+                setTimeout(() => {
+                    b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    updatePinState(b.pin, 0);
+                }, 400);
             });
             await sleep(1000);
         }
@@ -1265,11 +1253,9 @@ async function runTutorialStep(version) {
                 b.x = 0;
                 b.el.style.transition = 'transform 0.5s ease';
                 b.el.style.transform = `translateZ(${b.z}px) translateX(0px)`;
-                if (b.pinWrapper && b.pin) {
-                    b.pinWrapper.style.transition = 'transform 0.5s ease';
-                    b.pinWrapper.style.transform = `translateX(0px)`;
-                    updatePinState(b.pin, 0);
-                }
+                b.pinWrapper.style.transition = 'transform 0.5s ease';
+                b.pinWrapper.style.transform = `translateX(0px)`;
+                updatePinState(b.pin, 0);
             });
             await sleep(1000);
             if (version !== currentTutorialVersion) break;
@@ -1301,12 +1287,10 @@ async function runTutorialStep(version) {
                         let currentX = offset * item.dir;
                         item.b.el.style.transition = 'transform 0.15s linear';
                         item.b.el.style.transform = `translateZ(${item.b.z}px) translateX(${currentX}px)`;
-                        if (item.b.pinWrapper && item.b.pin) {
-                            item.b.pinWrapper.style.transition = 'transform 0.15s linear';
-                            item.b.pinWrapper.style.transform = `translateX(${-currentX}px)`;
-                            item.b.pin.style.transition = 'transform 0.1s linear';
-                            updatePinState(item.b.pin, currentX);
-                        }
+                        item.b.pinWrapper.style.transition = 'transform 0.15s linear';
+                        item.b.pinWrapper.style.transform = `translateX(${-currentX}px)`;
+                        item.b.pin.style.transition = 'transform 0.1s linear';
+                        updatePinState(item.b.pin, currentX);
                     });
                     await sleep(150);
                 }
@@ -1364,11 +1348,9 @@ async function runTutorialStep(version) {
             b.x = targetX;
             b.el.style.transition = 'transform 0.5s ease';
             b.el.style.transform = `translateZ(${b.z}px) translateX(${targetX}px)`;
-            if (b.pinWrapper && b.pin) {
-                b.pinWrapper.style.transition = 'transform 0.5s ease';
-                b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
-                updatePinState(b.pin, targetX);
-            }
+            b.pinWrapper.style.transition = 'transform 0.5s ease';
+            b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
+            updatePinState(b.pin, targetX);
         });
         await sleep(600);
         if (version !== currentTutorialVersion) return;
@@ -1452,11 +1434,9 @@ async function runTutorialStep(version) {
                 b.x = targetX;
                 b.el.style.transition = 'transform 0.5s ease';
                 b.el.style.transform = `translateZ(${b.z}px) translateX(${targetX}px)`;
-                if (b.pinWrapper && b.pin) {
-                    b.pinWrapper.style.transition = 'transform 0.5s ease';
-                    b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
-                    updatePinState(b.pin, targetX);
-                }
+                b.pinWrapper.style.transition = 'transform 0.5s ease';
+                b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
+                updatePinState(b.pin, targetX);
             });
             await sleep(800);
             if (version !== currentTutorialVersion) break;
