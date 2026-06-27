@@ -1,4 +1,3 @@
-
 const lock = document.getElementById('lock'),
     sizeInput = document.getElementById('sizeInput'),
     countInput = document.getElementById('countInput'),
@@ -338,7 +337,7 @@ setInitialScale();
 
 function vibrate(duration) {
 
-    if(navigator.vibrate) navigator.vibrate(duration);
+    if (navigator.vibrate) navigator.vibrate(duration);
 
     if (!navigator.getGamepads) return;
     const gamepads = navigator.getGamepads();
@@ -349,19 +348,43 @@ function vibrate(duration) {
             duration: duration * 4,
             weakMagnitude: 1.0,
             strongMagnitude: 0.0
-        }).catch(error => {});
+        }).catch(error => {
+        });
         break;
     }
 }
 
-function updatePinState(pin, currentX) {
+function updatePinState(block, options = {}) {
+
+    const {
+        x = block.x,
+        pin = block.pin,
+        pinWrapper = block.pinWrapper,
+        hidePin = false,
+        wrapperTransition = null,
+        pinTransition = null
+    } = options;
+
+    if (wrapperTransition !== null) {
+        pinWrapper.style.transition = wrapperTransition;
+    }
+    if (pinTransition !== null) {
+        pin.style.transition = pinTransition;
+    }
+
+    pinWrapper.style.transform = `translateX(${-x}px)`;
+
+    if (hidePin) {
+        pin.style.transform = `translateZ(${PIN_UNDER}px)`;
+        return;
+    }
 
     const
-        holeIndex = Math.round(currentX * ONE_OVER_HOLE_SPACING),
-        distanceToHole = Math.abs(currentX - (holeIndex * HOLE_SPACING));
+        holeIndex = Math.round(x * ONE_OVER_HOLE_SPACING),
+        distanceToHole = Math.abs(x - (holeIndex * HOLE_SPACING));
 
     if (distanceToHole >= 3) {
-        if (pin.dataset.wasOverHole !== 'false') {
+        if ('false' !== pin.dataset.wasOverHole) {
             pin.dataset.wasOverHole = 'false';
         }
 
@@ -372,14 +395,12 @@ function updatePinState(pin, currentX) {
         return;
     }
 
-    const wasOverHole = pin.dataset.wasOverHole === 'true';
-
-    if (!wasOverHole) {
+    if ('false' === pin.dataset.wasOverHole) {
         pin.dataset.wasOverHole = 'true';
-        vibrate(15)
+        vibrate(15);
     }
 
-    const targetTransform = `translateZ(${(holeIndex === 0) ? PIN_RAISED : PIN_MIDDLE}px)`;
+    const targetTransform = `translateZ(${(0 === holeIndex) ? PIN_RAISED : PIN_MIDDLE}px)`;
     if (pin.style.transform !== targetTransform) {
         pin.style.transform = targetTransform;
     }
@@ -475,6 +496,7 @@ function createPlate(id, prevX, zPos) {
     return plate;
 }
 
+//todo arg for default state for tutorial or the tutorial defaults
 function renderBlocks() {
 
     const
@@ -516,19 +538,19 @@ function renderBlocks() {
         const plate = createPlate(id, prevX, zPos);
         lock.prepend(plate);
 
-        gameState.blocks.push({
+        let b = {
             id: id,
             x: prevX,
             z: zPos,
             el: plate,
             pinWrapper: plate.querySelector('.pin-wrapper'),
             pin: plate.querySelector('.pin'),
-            group: currentGroup || { [id]: 1 }
-        });
+            group: currentGroup || {[id]: 1}
+        };
 
-        if (plate.querySelector('.pin')) {
-            updatePinState(plate.querySelector('.pin'), prevX)
-        }
+        gameState.blocks.push(b);
+
+        updatePinState(b)
     }
     renderInspectorRow();
 }
@@ -556,6 +578,7 @@ btnIncrease.addEventListener('click', () => {
         countInput.dispatchEvent(new Event('input'));
     }
 });
+
 function toggleExpandList(forceState) {
     const isExpanded = undefined !== forceState ? forceState : solutionList.classList.toggle('is-expanded');
     if (undefined !== forceState) solutionList.classList.toggle('is-expanded', forceState);
@@ -611,6 +634,7 @@ resetBtn.addEventListener('click', () => {
     renderBlocks();
 });
 renderBlocks();
+
 function getClientX(e) {
     return e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
 }
@@ -677,13 +701,9 @@ function applySingleMove(move, reverse = false) {
             b.x = newX;
             b.el.style.transition = 'transform 0.2s ease-out';
             b.el.style.transform = `translateZ(${b.z}px) translateX(${newX}px)`;
-            b.pinWrapper.style.transition = 'transform 0.2s ease-out';
-            b.pinWrapper.style.transform = `translateX(${-newX}px)`;
-            b.pin.style.transition = 'transform 0.05s ease-in';
-            b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
+            updatePinState(b, {hidePin: true, wrapperTransition: 'transform 0.2s ease-out', pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
             setTimeout(() => {
-                b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                updatePinState(b.pin, newX);
+                updatePinState(b, {pinTransition: 'none'});
             }, 200);
         }
     });
@@ -700,8 +720,7 @@ function handleDragStart(e) {
             gameState.dragState.movingGroup.forEach(item => {
                 item.block.x = item.initialX;
                 item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${item.initialX}px)`;
-                item.block.pinWrapper.style.transform = `translateX(${-item.initialX}px)`;
-                updatePinState(item.block.pin, item.initialX);
+                updatePinState(item.block);
             });
             clearHoverPreview(true);
             gameState.dragState.activePlate = null;
@@ -723,15 +742,13 @@ function handleDragStart(e) {
     const clickedId = parseInt(clickedPlate.dataset.id);
     let clickedBlock = gameState.blocks.find(b => b.id === clickedId);
     if (!clickedBlock) return;
-    //let draggedBlockPolarity = clickedBlock.group[clickedBlock.id] || 1;
     Object.keys(clickedBlock.group).forEach(idStr => {
         let id = parseInt(idStr),
             dir = clickedBlock.group[id],
-            //direction depending of main one block (usually number (1) * child dir)
-            //relativeDir = draggedBlockPolarity * rawDir,
             b = gameState.blocks.find(x => x.id === id);
         if (b) {
             gameState.dragState.movingGroup.push({block: b, dir: dir, initialX: b.x});
+            //todo
             b.el.style.transition = 'none';
             b.pinWrapper.style.transition = 'none';
         }
@@ -778,9 +795,9 @@ function handleDragMove(e) {
     gameState.dragState.movingGroup.forEach(item => {
         let newX = item.initialX + (deltaX * item.dir);
         item.currentX = newX;
+        item.block.x = newX;
         item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${newX}px)`;
-        item.block.pinWrapper.style.transform = `translateX(${-newX}px)`;
-        updatePinState(item.block.pin, newX);
+        updatePinState(item.block);
     });
     gameState.lastAction = 'handleDragMove';
 }
@@ -815,9 +832,7 @@ function handleDragEnd(e) {
             item.block.x = finalX;
             item.block.el.style.transition = 'transform 0.2s ease-out';
             item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${finalX}px)`;
-            item.block.pinWrapper.style.transition = 'transform 0.2s ease-out';
-            item.block.pinWrapper.style.transform = `translateX(${-finalX}px)`;
-            updatePinState(item.block.pin, finalX);
+            updatePinState(item.block, {wrapperTransition: 'transform 0.2s ease-out'});
         });
     }
     gameState.dragState.activePlate = null;
@@ -1118,19 +1133,26 @@ function endTutorial() {
 }
 
 async function runTutorialStep(version) {
-    tutorialArrow.style.display = 'none';
-    gameState.blocks.forEach(b => {
-        b.el.querySelector('.front-face').style.borderColor = '';
-        b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched');
-        b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
-    });
+    function clean() {
 
-    if (6 !== parseInt(countInput.value) && 3 !== tutorialStep) {
-        countInput.value = 6;
-        renderBlocks();
+        tutorialArrow.style.display = 'none';
+        gameState.blocks.forEach(b => {
+            b.el.querySelector('.front-face').style.borderColor = '';
+            b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched');
+            b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
+        });
+        if (6 !== parseInt(countInput.value) && 3 !== tutorialStep) {
+            countInput.value = 6;
+            renderBlocks();
+        }
     }
 
+    clean();
+
     if (1 === tutorialStep) {
+
+        clean();
+
         tutorialText.textContent = gameState.isMobile
             ? "Use a two-finger pinch gesture on the screen to zoom in or out."
             : "Use the slider to adjust zooming.";
@@ -1163,6 +1185,7 @@ async function runTutorialStep(version) {
         if (sizeInput) sizeInput.value = baseScale;
 
     } else if (2 === tutorialStep) {
+        clean();
         tutorialText.textContent = "You can drag selected plates left or right.";
         let plateIndex = 0;
         while (version === currentTutorialVersion) {
@@ -1213,13 +1236,9 @@ async function runTutorialStep(version) {
                     b.x = targetX;
                     b.el.style.transition = 'transform 0.5s ease';
                     b.el.style.transform = `translateZ(${b.z}px) translateX(${targetX}px)`;
-                    b.pinWrapper.style.transition = 'transform 0.5s ease';
-                    b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
-                    b.pin.style.transition = 'transform 0.1s ease-in';
-                    b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
+                    updatePinState(b, {hidePin: true, wrapperTransition: 'transform 0.5s ease', pinTransition: 'transform 0.1s ease-in'});
                     setTimeout(() => {
-                        b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                        updatePinState(b.pin, targetX);
+                        updatePinState(b, {pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
                     }, 400);
                 });
                 pIndex++;
@@ -1229,22 +1248,15 @@ async function runTutorialStep(version) {
                 b.x = 0;
                 b.el.style.transition = 'transform 0.5s ease';
                 b.el.style.transform = `translateZ(${b.z}px) translateX(0px)`;
-                b.pinWrapper.style.transition = 'transform 0.5s ease';
-                b.pinWrapper.style.transform = `translateX(0px)`;
-                b.pin.style.transition = 'transform 0.1s ease-in';
-                b.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
+                updatePinState(b, {wrapperTransition: 'transform 0.5s ease', pinTransition: 'transform 0.1s ease-in'});
                 setTimeout(() => {
-                    b.pin.style.transition = 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                    updatePinState(b.pin, 0);
+                    updatePinState(b, {pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
                 }, 400);
             });
             await sleep(1000);
         }
     } else if (4 === tutorialStep) {
-        if (6 !== parseInt(countInput.value)) {
-            countInput.value = 6;
-            renderBlocks();
-        }
+        clean();
         tutorialText.textContent = "Long-press to group plates. Blue moves with it, Red opposite. Tap again to deselect.";
         while (version === currentTutorialVersion) {
             gameState.blocks.forEach(b => {
@@ -1253,9 +1265,7 @@ async function runTutorialStep(version) {
                 b.x = 0;
                 b.el.style.transition = 'transform 0.5s ease';
                 b.el.style.transform = `translateZ(${b.z}px) translateX(0px)`;
-                b.pinWrapper.style.transition = 'transform 0.5s ease';
-                b.pinWrapper.style.transform = `translateX(0px)`;
-                updatePinState(b.pin, 0);
+                updatePinState(b, {wrapperTransition: 'transform 0.5s ease', pinTransition: 'transform 0.1s ease-in'});
             });
             await sleep(1000);
             if (version !== currentTutorialVersion) break;
@@ -1285,12 +1295,10 @@ async function runTutorialStep(version) {
                     if (offset > 50 || offset < -50) direction *= -1;
                     [{b: p1, dir: 1}, {b: p2, dir: 1}, {b: p3, dir: -1}].forEach(item => {
                         let currentX = offset * item.dir;
+                        item.b.x = currentX;
                         item.b.el.style.transition = 'transform 0.15s linear';
                         item.b.el.style.transform = `translateZ(${item.b.z}px) translateX(${currentX}px)`;
-                        item.b.pinWrapper.style.transition = 'transform 0.15s linear';
-                        item.b.pinWrapper.style.transform = `translateX(${-currentX}px)`;
-                        item.b.pin.style.transition = 'transform 0.1s linear';
-                        updatePinState(item.b.pin, currentX);
+                        updatePinState(item.b, {wrapperTransition: 'transform 0.15s linear', pinTransition: 'transform 0.1s linear'});
                     });
                     await sleep(150);
                 }
@@ -1298,11 +1306,8 @@ async function runTutorialStep(version) {
             } else await sleep(1000);
         }
     } else if (5 === tutorialStep) {
+        clean();
         tutorialText.textContent = gameState.isMobile ? "Touch the number row to see what groups are selected for plate" : "Hover with mouse to understand what are selected for plate";
-        if (6 !== parseInt(countInput.value)) {
-            countInput.value = 6;
-            renderBlocks();
-        }
         while (version === currentTutorialVersion) {
             gameState.blocks.forEach(b => b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched'));
             await sleep(500);
@@ -1338,6 +1343,7 @@ async function runTutorialStep(version) {
             } else await sleep(1000);
         }
     } else if (6 === tutorialStep) {
+        clean();
         tutorialText.textContent = gameState.isMobile ? "You can walk step-by-step by pressing step controls. If you hold it, it will move plates state-by-state." : "If squashed is checked, plates will go from state-to-state. Without squashed, you can walk single steps.";
         resetBtn.click();
         await sleep(200);
@@ -1348,9 +1354,7 @@ async function runTutorialStep(version) {
             b.x = targetX;
             b.el.style.transition = 'transform 0.5s ease';
             b.el.style.transform = `translateZ(${b.z}px) translateX(${targetX}px)`;
-            b.pinWrapper.style.transition = 'transform 0.5s ease';
-            b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
-            updatePinState(b.pin, targetX);
+            updatePinState(b, {wrapperTransition: 'transform 0.5s ease'});
         });
         await sleep(600);
         if (version !== currentTutorialVersion) return;
@@ -1423,6 +1427,7 @@ async function runTutorialStep(version) {
             }
         }
     } else if (7 === tutorialStep) {
+        clean();
         tutorialText.textContent = "You can play the whole sequence automatically. Press the play button.";
         while (version === currentTutorialVersion) {
             resetBtn.click();
@@ -1434,9 +1439,7 @@ async function runTutorialStep(version) {
                 b.x = targetX;
                 b.el.style.transition = 'transform 0.5s ease';
                 b.el.style.transform = `translateZ(${b.z}px) translateX(${targetX}px)`;
-                b.pinWrapper.style.transition = 'transform 0.5s ease';
-                b.pinWrapper.style.transform = `translateX(${-targetX}px)`;
-                updatePinState(b.pin, targetX);
+                updatePinState(b, {wrapperTransition: 'transform 0.5s ease'});
             });
             await sleep(800);
             if (version !== currentTutorialVersion) break;

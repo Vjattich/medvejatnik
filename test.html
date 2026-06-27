@@ -110,12 +110,11 @@
 
     //todo improve test
     QUnit.module('Lockpicker Game Logic - Pin State (updatePinState)', hooks => {
-        let pin;
-        let vibrateStub;
-        let rumbleStub;
-        let rumbleWasGlobal = false;
+        let block,
+            vibrateStub,
+            rumbleStub,
+            rumbleWasGlobal = false;
 
-        // Cache the native function once at module scope so it can be restored
         const originalElementFromPoint = document.elementFromPoint;
 
         hooks.beforeEach(() => {
@@ -143,10 +142,8 @@
                 }
             });
 
-            // 4. Initialize test DOM elements for isolated tests
-            pin = document.createElement('div');
+            block = gameState.blocks[0];
 
-            // 5. Setup Stubs
             if (typeof navigator.vibrate === 'function') {
                 vibrateStub = sinon.stub(navigator, 'vibrate');
             }
@@ -158,10 +155,12 @@
 
         QUnit.test('Updates state correctly when NOT over any hole', assert => {
 
-            updatePinState(pin, HOLE_SPACING / 2);
+            block.x = HOLE_SPACING / 2;
 
-            assert.equal(pin.dataset.wasOverHole, "false", 'Updates dataset.wasOverHole to string "false"');
-            assert.ok(pin.style.transform.includes(String(PIN_UNDER)), `Pushes pin to the PIN_UNDER state (${PIN_UNDER}px)`);
+            updatePinState(block);
+
+            assert.equal(block.pin.dataset.wasOverHole, "false", 'Updates dataset.wasOverHole to string "false"');
+            assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), `Pushes pin to the PIN_UNDER state (${PIN_UNDER}px)`);
 
             if (vibrateStub) assert.ok(vibrateStub.notCalled, 'Does not trigger mobile vibration');
             if (rumbleStub) assert.ok(rumbleStub.notCalled, 'Does not trigger gamepad rumble');
@@ -169,10 +168,12 @@
 
         QUnit.test('Updates state correctly for the CORRECT hole (index 0)', assert => {
 
-            updatePinState(pin, 1);
+            block.x = 1;
 
-            assert.strictEqual(pin.dataset.wasOverHole, 'true', 'Updates dataset.wasOverHole to string "true"');
-            assert.ok(pin.style.transform.includes(String(PIN_RAISED)), `Raises pin to the PIN_RAISED state (${PIN_RAISED}px)`);
+            updatePinState(block);
+
+            assert.strictEqual(block.pin.dataset.wasOverHole, 'true', 'Updates dataset.wasOverHole to string "true"');
+            assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), `Raises pin to the PIN_RAISED state (${PIN_RAISED}px)`);
 
             if (vibrateStub && vibrateStub.called) {
                 assert.ok(vibrateStub.calledWith(15), 'vibration for 15ms');
@@ -184,19 +185,22 @@
 
         QUnit.test('Updates state correctly for an INCORRECT hole (index > 0)', assert => {
 
-            updatePinState(pin, HOLE_SPACING);
+            block.x = HOLE_SPACING;
 
-            assert.strictEqual(pin.dataset.wasOverHole, 'true', 'Updates dataset.wasOverHole to string "true"');
-            assert.ok(pin.style.transform.includes(String(PIN_MIDDLE)), `Moves pin to the PIN_MIDDLE state (${PIN_MIDDLE}px)`);
+            updatePinState(block);
+
+            assert.strictEqual(block.pin.dataset.wasOverHole, 'true', 'Updates dataset.wasOverHole to string "true"');
+            assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), `Moves pin to the PIN_MIDDLE state (${PIN_MIDDLE}px)`);
         });
 
         QUnit.test('Tolerance boundaries are strictly enforced (exactly 3px)', assert => {
-            const under = PIN_UNDER;
 
-            updatePinState(pin, 3.0);
+            block.x = 3.0;
 
-            assert.strictEqual(pin.dataset.wasOverHole, "false", 'A distance of exactly 3px evaluates as outside the hole');
-            assert.ok(pin.style.transform.includes(String(under)), 'Pin falls to the PIN_UNDER state');
+            updatePinState(block);
+
+            assert.strictEqual(block.pin.dataset.wasOverHole, "false", 'A distance of exactly 3px evaluates as outside the hole');
+            assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin falls to the PIN_UNDER state');
         });
 
         QUnit.test('Pin state drops to PIN_UNDER instantly and rises to PIN_MIDDLE/RAISED after timeout in applySingleMove', assert => {
