@@ -1134,13 +1134,22 @@ function endTutorial() {
 
 async function runTutorialStep(version) {
     function clean() {
-
         tutorialArrow.style.display = 'none';
-        gameState.blocks.forEach(b => {
-            b.el.querySelector('.front-face').style.borderColor = '';
+
+        gameState.blocks.filter(b => b.x !== 0).forEach(b => {
             b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched');
-            b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
+            b.el.querySelector('.front-face').style.borderColor = '';
+            b.x = 0;
+            b.el.style.transition = 'transform 0.5s ease';
+            b.el.style.transform = `translateZ(${b.z}px) translateX(0px)`;
+            if (!b.pin.style.transform.includes(`translateZ(${PIN_RAISED}px`)) {
+                updatePinState(b, {hidePin:true, wrapperTransition: 'transform 0.5s ease', pinTransition: 'transform 0.1s ease-in'});
+                setTimeout(() => {
+                    updatePinState(b, {wrapperTransition: 'transform 0.5s ease', pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
+                }, 400);
+            }
         });
+
         if (6 !== parseInt(countInput.value) && 3 !== tutorialStep) {
             countInput.value = 6;
             renderBlocks();
@@ -1244,35 +1253,18 @@ async function runTutorialStep(version) {
                 pIndex++;
                 await sleep(1500);
             }
-            gameState.blocks.forEach(b => {
-                b.x = 0;
-                b.el.style.transition = 'transform 0.5s ease';
-                b.el.style.transform = `translateZ(${b.z}px) translateX(0px)`;
-                updatePinState(b, {wrapperTransition: 'transform 0.5s ease', pinTransition: 'transform 0.1s ease-in'});
-                setTimeout(() => {
-                    updatePinState(b, {pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
-                }, 400);
-            });
+            clean();
             await sleep(1000);
         }
     } else if (4 === tutorialStep) {
         clean();
         tutorialText.textContent = "Long-press to group plates. Blue moves with it, Red opposite. Tap again to deselect.";
         while (version === currentTutorialVersion) {
-            gameState.blocks.forEach(b => {
-                b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse');
-                b.el.querySelector('.front-face').style.borderColor = '';
-                b.x = 0;
-                b.el.style.transition = 'transform 0.5s ease';
-                b.el.style.transform = `translateZ(${b.z}px) translateX(0px)`;
-                updatePinState(b, {wrapperTransition: 'transform 0.5s ease', pinTransition: 'transform 0.1s ease-in'});
-            });
-            await sleep(1000);
+            clean();
+            await sleep(1200);
             if (version !== currentTutorialVersion) break;
             if (gameState.blocks.length >= 3) {
-                const p1 = gameState.blocks[0];
-                const p2 = gameState.blocks[1];
-                const p3 = gameState.blocks[2];
+                const p1 = gameState.blocks[0], p2 = gameState.blocks[1], p3 = gameState.blocks[2];
                 p1.el.classList.add('selected');
                 await sleep(800);
                 if (version !== currentTutorialVersion) break;
@@ -1287,22 +1279,24 @@ async function runTutorialStep(version) {
                 await sleep(800);
                 if (version !== currentTutorialVersion) break;
                 tutorialArrow.style.display = 'none';
-                let offset = 0;
-                let direction = 1;
-                for (let i = 0; i < 20; i++) {
+                let offset = 0,
+                    direction = 1;
+                const maxLimit = HOLE_SPACING * 1.5,
+                    totalFrames = 180;
+                for (let i = 0; i <= totalFrames; i++) {
                     if (version !== currentTutorialVersion) break;
-                    offset += direction * 20;
-                    if (offset > 50 || offset < -50) direction *= -1;
+                    let progress = i / totalFrames,
+                        offset = Math.sin(progress * Math.PI * 2) * maxLimit;
                     [{b: p1, dir: 1}, {b: p2, dir: 1}, {b: p3, dir: -1}].forEach(item => {
-                        let currentX = offset * item.dir;
-                        item.b.x = currentX;
-                        item.b.el.style.transition = 'transform 0.15s linear';
-                        item.b.el.style.transform = `translateZ(${item.b.z}px) translateX(${currentX}px)`;
-                        updatePinState(item.b, {wrapperTransition: 'transform 0.15s linear', pinTransition: 'transform 0.1s linear'});
+                        item.b.x = offset * item.dir;
+                        item.b.el.style.transition = 'none';
+                        item.b.el.style.transform = `translateZ(${item.b.z}px) translateX(${item.b.x}px)`;
+                        updatePinState(item.b, {wrapperTransition: 'none', pinTransition: 'transform 0.03s ease-out'});
                     });
-                    await sleep(150);
+
+                    await sleep(16);
                 }
-                await sleep(800);
+
             } else await sleep(1000);
         }
     } else if (5 === tutorialStep) {
