@@ -24,6 +24,7 @@ const lock = document.getElementById('lock'),
     SHORT_PRESS_DURATION = 100,
     DRAG_THRESHOLD = 5,
     HOLE_SPACING = 36.5,
+    MAX_BOUND = 3 * HOLE_SPACING,
     SOLVE_TIMEOUT_MS = 5000,
     MAX_PLATES = 8,
     ONE_OVER_HOLE_SPACING = 1 / HOLE_SPACING
@@ -354,7 +355,7 @@ function vibrate(duration) {
     }
 }
 
-function updateSinglePinState(b, outTime) {
+function updateSinglePinMove(b, outTime) {
     updatePinState(b, {hidePin: true, wrapperTransition: 'transform 0.2s ease-out', pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
     setTimeout(() => {
         updatePinState(b, {pinTransition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)'});
@@ -410,6 +411,24 @@ function updatePinState(block, options = {}) {
     const targetTransform = `translateZ(${(0 === holeIndex) ? PIN_RAISED : PIN_MIDDLE}px)`;
     if (pin.style.transform !== targetTransform) {
         pin.style.transform = targetTransform;
+    }
+}
+
+function updateBlockState(b, options = {}) {
+
+    const {x = null, transition = null, pinTransition = null, pinTime = null} = options;
+
+    b.x = x;
+    b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
+    if (null !== transition) {
+        b.el.style.transition = transition;
+    }
+
+    if (null === pinTime) {
+        updatePinState(b, {wrapperTransition: transition, pinTransition: pinTransition});
+    } else {
+        //with time it should goes back after setTimeout
+        updateSinglePinMove(b, pinTime);
     }
 }
 
@@ -593,9 +612,9 @@ function toggleExpandList(forceState) {
     if (parentRow) parentRow.classList.toggle('is-expanded-parent', isExpanded);
     expandBtn.textContent = isExpanded ? '▲ Collapse List ▲' : '▼ Expand Full List ▼';
     if (isExpanded) {
-        const rect = solutionList.getBoundingClientRect();
-        const bottomPadding = window.innerHeight * 0.05;
-        const availableHeight = window.innerHeight - rect.top - bottomPadding - 45;
+        const rect = solutionList.getBoundingClientRect(),
+            bottomPadding = window.innerHeight * 0.05,
+            availableHeight = window.innerHeight - rect.top - bottomPadding - 45;
         solutionList.style.height = `${availableHeight}px`;
         solutionList.style.maxHeight = `${availableHeight}px`;
         setTimeout(() => {
@@ -692,24 +711,20 @@ function longPress(clickedId) {
 }
 
 function applySingleMove(move, reverse = false) {
-    const primaryBlock = gameState.blocks[move.plate - 1];
-    let stepShift = ("left" === move.direction) ? -HOLE_SPACING : HOLE_SPACING;
-    if (true === reverse) stepShift *= -1;
-    let draggedBlockPolarity = primaryBlock.group[primaryBlock.id] || 1;
-    Object.keys(primaryBlock.group).forEach(idStr => {
-        const id = parseInt(idStr),
-            relativeDir = (primaryBlock.group[id] * draggedBlockPolarity),
+    const
+        primaryBlock = gameState.blocks[move.plate - 1],
+        stepShift = ('left' === move.direction) === reverse ? HOLE_SPACING : -HOLE_SPACING;
+
+    Object.keys(primaryBlock.group).forEach(i => {
+        const
+            id = parseInt(i),
+            relativeDir = (primaryBlock.group[id]),
             b = gameState.blocks.find(x => x.id === id);
-        if (b) {
-            let newX = b.x + (stepShift * relativeDir);
-            const maxBound = 3 * HOLE_SPACING;
-            if (newX > maxBound) newX = maxBound;
-            if (newX < -maxBound) newX = -maxBound;
-            b.x = newX;
-            b.el.style.transition = 'transform 0.2s ease-out';
-            b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
-            updateSinglePinState(b, 200)
-        }
+        if (!b) return;
+        let newX = b.x + (stepShift * relativeDir);
+        if (newX > MAX_BOUND) newX = MAX_BOUND;
+        if (newX < -MAX_BOUND) newX = -MAX_BOUND;
+        updateBlockState(b, {x: newX, transition: 'transform 0.2s ease-out', pinTime: 200});
     });
 }
 
@@ -722,9 +737,7 @@ function handleDragStart(e) {
         clearTimeout(gameState.dragState.longPressTimer);
         if (gameState.dragState.activePlate) {
             gameState.dragState.movingGroup.forEach(item => {
-                item.block.x = item.initialX;
-                item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${item.block.x}px)`;
-                updatePinState(item.block);
+                updateBlockState(item.block, {x: item.initialX});
             });
             clearHoverPreview(true);
             gameState.dragState.activePlate = null;
@@ -798,9 +811,7 @@ function handleDragMove(e) {
     if (deltaX > maxDeltaX) deltaX = maxDeltaX;
     gameState.dragState.movingGroup.forEach(item => {
         item.currentX = item.initialX + (deltaX * item.dir);
-        item.block.x = item.currentX;
-        item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${item.block.x}px)`;
-        updatePinState(item.block);
+        updateBlockState(item.block, {x: item.currentX});
     });
     gameState.lastAction = 'handleDragMove';
 }
@@ -832,10 +843,7 @@ function handleDragEnd(e) {
         if (snapDelta > maxAllowedShiftRight) snapDelta = maxAllowedShiftRight;
         gameState.dragState.movingGroup.forEach(item => {
             let cx = undefined !== item.currentX ? item.currentX : item.initialX;
-            item.block.x = cx + (snapDelta * item.dir);
-            item.block.el.style.transition = 'transform 0.2s ease-out';
-            item.block.el.style.transform = `translateZ(${item.block.z}px) translateX(${item.block.x}px)`;
-            updatePinState(item.block, {wrapperTransition: 'transform 0.2s ease-out'});
+            updateBlockState(item.block, {x: cx + (snapDelta * item.dir), transition: 'transform 0.2s ease-out'});
         });
     }
     gameState.dragState.activePlate = null;
@@ -1139,15 +1147,10 @@ async function runTutorialStep(version) {
     function clean() {
         tutorialArrow.style.display = 'none';
 
-        gameState.blocks.filter(b => b.x !== 0).forEach(b => {
+        gameState.blocks.filter(b => b.x !== 0 || !b.pin.style.transform.includes(`translateZ(${PIN_RAISED}px`)).forEach(b => {
             b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched');
             b.el.querySelector('.front-face').style.borderColor = '';
-            b.x = 0;
-            b.el.style.transition = 'transform 0.5s ease';
-            b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
-            if (!b.pin.style.transform.includes(`translateZ(${PIN_RAISED}px`)) {
-                updateSinglePinState(b, 400)
-            }
+            updateBlockState(b, {x: 0, transition: 'transform 0.5s ease', pinTime: 400})
         });
 
         if (6 !== parseInt(countInput.value) && 3 !== tutorialStep) {
@@ -1241,10 +1244,7 @@ async function runTutorialStep(version) {
             while (pIndex < 3) {
                 const positions = presets[pIndex % presets.length];
                 gameState.blocks.forEach((b, i) => {
-                    b.x = positions[i] || 0;
-                    b.el.style.transition = 'transform 0.5s ease';
-                    b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
-                    updateSinglePinState(b, 400);
+                    updateBlockState(b, {x: positions[i] || 0, transition: 'transform 0.5s ease', pinTime: 400})
                 });
                 pIndex++;
                 await sleep(1500);
@@ -1284,10 +1284,7 @@ async function runTutorialStep(version) {
                     let progress = i / totalFrames,
                         offset = Math.sin(progress * Math.PI * 2) * maxLimit;
                     [{b: p1, dir: 1}, {b: p2, dir: 1}, {b: p3, dir: -1}].forEach(item => {
-                        item.b.x = offset * item.dir;
-                        item.b.el.style.transition = 'none';
-                        item.b.el.style.transform = `translateZ(${item.b.z}px) translateX(${item.b.x}px)`;
-                        updatePinState(item.b, {wrapperTransition: 'none', pinTransition: 'transform 0.03s ease-out'});
+                        updateBlockState(item.b, {x: offset * item.dir, transition: 'none', pinTransition: 'transform 0.03s ease-out'})
                     });
 
                     await sleep(16);
@@ -1340,10 +1337,8 @@ async function runTutorialStep(version) {
         if (version !== currentTutorialVersion) return;
         const hardState = [HOLE_SPACING * 2, -HOLE_SPACING, HOLE_SPACING * 3, -HOLE_SPACING * 2, HOLE_SPACING, -HOLE_SPACING];
         gameState.blocks.forEach((b, i) => {
-            b.x = hardState[i] || 0;
-            b.el.style.transition = 'transform 0.5s ease';
-            b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
-            updateSinglePinState(b, 400);
+            //todo a slight bug that dissapear first move of pin
+            updateBlockState(b, {x: hardState[i] || 0, transition: 'transform 0.5s ease', pinTime: 400})
         });
         await sleep(600);
         if (version !== currentTutorialVersion) return;
@@ -1424,10 +1419,7 @@ async function runTutorialStep(version) {
             if (version !== currentTutorialVersion) break;
             const playState = [-HOLE_SPACING * 2, HOLE_SPACING * 2, -HOLE_SPACING, HOLE_SPACING, 0, -HOLE_SPACING];
             gameState.blocks.forEach((b, i) => {
-                b.x = playState[i] || 0;
-                b.el.style.transition = 'transform 0.5s ease';
-                b.el.style.transform = `translateZ(${b.z}px) translateX(${b.x}px)`;
-                updateSinglePinState(b, 400);
+                updateBlockState(b, {x: playState[i] || 0, transition: 'transform 0.5s ease', pinTime: 400})
             });
             await sleep(800);
             if (version !== currentTutorialVersion) break;

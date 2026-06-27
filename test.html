@@ -254,7 +254,8 @@
 
             assert.strictEqual(block.pin.dataset.wasOverHole, "true", 'Pin evaluates as over hole when drag reaches next hole');
             //current coords
-            const s_1 = block.el.style.transform.indexOf('X') + 2,
+            const
+                s_1 = block.el.style.transform.indexOf('X') + 2,
                 x_1 = -block.el.style.transform.substring(s_1, block.el.style.transform.length - 3);
             assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), 'Pin pops up to PIN_MIDDLE at next hole index');
             assert.ok(block.pinWrapper.style.transform.includes(`translateX(${x_1}px)`), 'pinWrapper offsets dynamically by full negative step');
