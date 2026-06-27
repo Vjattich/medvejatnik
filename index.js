@@ -25,6 +25,7 @@ const lock = document.getElementById('lock'),
     DRAG_THRESHOLD = 5,
     HOLE_SPACING = 36.5,
     MAX_BOUND = 3 * HOLE_SPACING,
+    MAX_DELTA_LIMIT = 120,
     SOLVE_TIMEOUT_MS = 5000,
     MAX_PLATES = 8,
     ONE_OVER_HOLE_SPACING = 1 / HOLE_SPACING
@@ -744,13 +745,11 @@ function handleDragStart(e) {
         pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
         clearTimeout(gameState.dragState.longPressTimer);
         if (gameState.dragState.activePlate) {
-            gameState.dragState.movingGroup.forEach(item => {
-                updateBlockState(item.block, {x: item.initialX});
-            });
-            clearHoverPreview(true);
+            gameState.dragState.movingGroup.forEach(item => updateBlockState(item.block, {x: item.initialX}));
             gameState.dragState.activePlate = null;
             gameState.dragState.movingGroup = [];
             gameState.dragState.isDragging = false;
+            clearHoverPreview(true);
         }
         return;
     }
@@ -764,7 +763,7 @@ function handleDragStart(e) {
     gameState.dragState.isDragging = false;
     gameState.dragState.movingGroup = [];
     updateHoverPreview(gameState.dragState.activePlate);
-    const clickedId = parseInt(clickedPlate.dataset.id);
+    const clickedId = parseInt(gameState.dragState.activePlate.dataset.id);
     let clickedBlock = gameState.blocks.find(b => b.id === clickedId);
     if (!clickedBlock) return;
     Object.keys(clickedBlock.group).forEach(idStr => {
@@ -804,19 +803,18 @@ function handleDragMove(e) {
         gameState.dragState.isDragging = true;
         clearTimeout(gameState.dragState.longPressTimer);
     }
-    let scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1,
-        rawDeltaX = (clientX - gameState.dragState.startInputX) / scale,
-        minDeltaX = -Infinity,
+    const
+        scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1,
+        rawDeltaX = (clientX - gameState.dragState.startInputX) / scale;
+
+    let minDeltaX = -Infinity,
         maxDeltaX = Infinity;
     gameState.dragState.movingGroup.forEach(item => {
-        let limitLeft = 1 === item.dir ? -120 - item.initialX : item.initialX - 120,
-            limitRight = 1 === item.dir ? 120 - item.initialX : item.initialX + 120;
-        if (limitLeft > minDeltaX) minDeltaX = limitLeft;
-        if (limitRight < maxDeltaX) maxDeltaX = limitRight;
+        const dir = (1 === item.dir);
+        minDeltaX = Math.max(minDeltaX, dir ? -MAX_DELTA_LIMIT - item.initialX : item.initialX - MAX_DELTA_LIMIT);
+        maxDeltaX = Math.min(maxDeltaX, dir ? MAX_DELTA_LIMIT - item.initialX : item.initialX + MAX_DELTA_LIMIT);
     });
-    let deltaX = rawDeltaX;
-    if (deltaX < minDeltaX) deltaX = minDeltaX;
-    if (deltaX > maxDeltaX) deltaX = maxDeltaX;
+    const deltaX = Math.max(minDeltaX, Math.min(rawDeltaX, maxDeltaX));
     gameState.dragState.movingGroup.forEach(item => {
         item.currentX = item.initialX + (deltaX * item.dir);
         updateBlockState(item.block, {x: item.currentX});
@@ -841,9 +839,11 @@ function handleDragEnd(e) {
             maxAllowedShiftLeft = -Infinity;
 
         gameState.dragState.movingGroup.forEach(item => {
-            let cx = undefined !== item.currentX ? item.currentX : item.initialX,
-                limitLeft = 1 === item.dir ? -120 - cx : cx - 120,
-                limitRight = 1 === item.dir ? 120 - cx : cx + 120;
+            let dir = 1 === item.dir,
+                //todo is there any time null of item.currentX?
+                cx = undefined !== item.currentX ? item.currentX : item.initialX,
+                limitLeft = dir ? -MAX_DELTA_LIMIT - cx : cx - MAX_DELTA_LIMIT,
+                limitRight = dir ? MAX_DELTA_LIMIT - cx : cx + MAX_DELTA_LIMIT;
             if (limitLeft > maxAllowedShiftLeft) maxAllowedShiftLeft = limitLeft;
             if (limitRight < maxAllowedShiftRight) maxAllowedShiftRight = limitRight;
         });
