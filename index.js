@@ -450,7 +450,7 @@ function updateHoverPreview(plate) {
     const groupIds = Object.keys(hoveredBlock.group);
     if (groupIds.length <= 1) return;
     groupIds.forEach(idStr => {
-        const id = parseInt(idStr, 10);
+        const id = +idStr;
         if (id === hoveredBlock.id) return;
         const member = gameState.blocks.find(b => b.id === id);
         if (!member) return;
@@ -533,7 +533,7 @@ function createPlate(id, prevX, zPos) {
 function renderBlocks() {
 
     const
-        count = parseInt(countInput.value),
+        count = +countInput.value,
         centerOffset = (count - 1) / 2,
         spacing = gameState.isMobile ? 55 : 50
     ;
@@ -596,16 +596,16 @@ countInput.addEventListener('input', (e) => {
     clearSolutionUI()
 });
 btnDecrease.addEventListener('click', () => {
-    let currentValue = parseInt(countInput.value, 10);
-    let min = parseInt(countInput.min, 10) || 1;
+    let currentValue = +countInput.value,
+        min = +countInput.min || 1;
     if (currentValue > min) {
         countInput.value = currentValue - 1;
         countInput.dispatchEvent(new Event('input'));
     }
 });
 btnIncrease.addEventListener('click', () => {
-    let currentValue = parseInt(countInput.value, 10);
-    let max = parseInt(countInput.max, 10) || 20;
+    let currentValue = +countInput.value,
+        max = +countInput.max || 20;
     if (currentValue < max) {
         countInput.value = currentValue + 1;
         countInput.dispatchEvent(new Event('input'));
@@ -682,7 +682,7 @@ function longPress(clickedId) {
                 gameState.activeLinkerId = curBlock.id;
                 gameState.dragState.activePlate.classList.add('selected');
                 Object.keys(curBlock.group).forEach(idStr => {
-                    let id = parseInt(idStr);
+                    let id = +idStr;
                     if (id !== curBlock.id) {
                         let b = gameState.blocks.find(x => x.id === id);
                         if (b) if (1 === curBlock.group[id]) b.el.classList.add('linked-highlight'); else b.el.classList.add('linked-highlight-reverse');
@@ -724,7 +724,7 @@ function applySingleMove(move, reverse = false) {
 
     Object.keys(primaryBlock.group).forEach(i => {
         const
-            id = parseInt(i),
+            id = +i,
             relativeDir = (primaryBlock.group[id]),
             b = gameState.blocks.find(x => x.id === id);
         if (!b) return;
@@ -889,7 +889,7 @@ function handleDragEnd(e) {
     if (activePlate && movingGroup.length > 0 && isDragging) {
 
         const
-            clickedId = parseInt(activePlate.dataset.id),
+            clickedId = +activePlate.dataset.id,
             primary = movingGroup.find(item => item.block.id === clickedId) || movingGroup[0],
             currentX = primary.currentX ?? primary.initialX,
             holeIndex = Math.round(currentX / HOLE_SPACING);
@@ -1230,7 +1230,7 @@ async function runTutorialStep(version) {
             })
         });
 
-        if (6 !== parseInt(countInput.value) && 3 !== tutorialStep) {
+        if (6 !== +countInput.value && 3 !== tutorialStep) {
             countInput.value = 6;
             renderBlocks();
         }
@@ -1289,7 +1289,7 @@ async function runTutorialStep(version) {
     } else if (3 === tutorialStep) {
         tutorialText.textContent = "Adjust plates like in a game: plates count and plates position.";
         while (version === currentTutorialVersion) {
-            if (6 !== parseInt(countInput.value)) {
+            if (6 !== +countInput.value) {
                 countInput.value = 6;
                 renderBlocks();
             }
