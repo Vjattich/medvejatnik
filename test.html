@@ -291,18 +291,14 @@
 
         QUnit.test('handleDragStart: 2-touch pinch aborts drag, resets pinWrapper, and updates pin state', assert => {
             const block = gameState.blocks[0];
+            const initialX = 0;
+            const currentDragX = HOLE_SPACING / 2;
 
-            // 1. Manually setup an active "mid-drag" state
-            const initialX = 0; // Started at origin
-            const currentDragX = HOLE_SPACING / 2; // Dragged halfway to next hole
-
-            // Mock the visually dragged appearance
             block.x = currentDragX;
             block.pinWrapper.style.transform = `translateX(${-currentDragX}px)`;
             block.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
             block.pin.dataset.wasOverHole = "false";
 
-            // Inject the active drag state that handleDragStart will try to cancel
             gameState.dragState.activePlate = block.el;
             gameState.dragState.movingGroup = [{
                 block: block,
@@ -310,10 +306,6 @@
                 initialX: initialX
             }];
             gameState.dragState.isDragging = true;
-
-            if (typeof pinchState === 'undefined') {
-                window.pinchState = {initialDistance: 0, initialScale: 1};
-            }
 
             const touchEvent = {
                 type: 'touchstart',
@@ -453,13 +445,48 @@
         QUnit.test('handleDragStart() initializes drag state variables correctly', assert => {
             const block = gameState.blocks[0];
 
-            // Simulate mouse pressing down on the block
+            block.group = { [block.id]: 1 };
+
             let clientX = 100;
-            block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
+            block.el.dispatchEvent(new MouseEvent('mousedown', {clientX, bubbles: true}));
 
             assert.equal(gameState.dragState.startInputX, clientX, 'Records the initial input X coordinate correctly');
             assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging remains false until the drag threshold is crossed');
             assert.strictEqual(gameState.dragState.activePlate, block.el, 'Assigns the triggered block to the activePlate state');
+            assert.strictEqual(gameState.dragState.hasMoved, false, 'hasMoved flag is explicitly set to false');
+            assert.equal(gameState.lastAction, 'handleDragStart', 'lastAction string is recorded');
+            assert.strictEqual(gameState.dragState.movingGroup.length, 1, 'Populates movingGroup array with the clicked block');
+            assert.strictEqual(gameState.dragState.movingGroup[0].block, block, 'movingGroup stores the correct block object reference');
+            assert.equal(gameState.dragState.movingGroup[0].initialX, block.x, 'Records the initialX in movingGroup');
+            assert.equal(block.el.style.transition, 'none', 'Clears CSS transition on block element');
+            assert.equal(block.pinWrapper.style.transition, 'none', 'Clears CSS transition on pinWrapper element');
+            assert.ok(typeof gameState.dragState.minDeltaX === 'number', 'Calculates and sets minDeltaX boundary');
+            assert.ok(typeof gameState.dragState.maxDeltaX === 'number', 'Calculates and sets maxDeltaX boundary');
+        });
+
+        QUnit.test('handleDragStart() multi-touch pinch-to-zoom resets drag states and applies zoom tracking', assert => {
+
+            gameState.dragState.isDragging = true;
+            gameState.dragState.activePlate = gameState.blocks[0].el;
+            gameState.dragState.longPressTimer = setTimeout(() => {}, 1000);
+
+            const touchEvent = new TouchEvent('touchstart', {
+                touches: [
+                    new Touch({ identifier: 1, target: gameState.blocks[0].el, clientX: 100, clientY: 100 }) ,
+                    new Touch({ identifier: 2, target: gameState.blocks[2].el, clientX: 200, clientY: 100 })
+                ],
+                bubbles: true,
+                cancelable: true
+            });
+
+            document.dispatchEvent(touchEvent);
+
+            assert.ok(document.body.classList.contains('is-zooming'), 'Applies "is-zooming" class to the document body');
+            assert.equal(pinchState.initialDistance, 100, 'Calculates the correct Math.hypot initial pinch distance');
+            assert.ok(typeof pinchState.initialScale === 'number', 'Sets pinchState.initialScale based on CSS variables');
+            assert.strictEqual(gameState.dragState.activePlate, null, 'activePlate is cleared out');
+            assert.deepEqual(gameState.dragState.movingGroup, [], 'movingGroup array is emptied');
+            assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging is forcefully reset to false');
         });
 
         // ==========================================

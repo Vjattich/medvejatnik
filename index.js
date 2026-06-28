@@ -740,65 +740,79 @@ function applySingleMove(move, reverse = false) {
 }
 
 function handleDragStart(e) {
-    if (e.touches) gameState.lastTouchTime = Date.now();
-    if (e.touches && 2 <= e.touches.length) {
+    const
+        touches = e.touches,
+        dragState = gameState.dragState;
+
+    if (touches) gameState.lastTouchTime = Date.now();
+    if (touches && touches.length >= 2) {
         document.body.classList.add('is-zooming');
-        pinchState.initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+
+        const t0 = touches[0], t1 = touches[1];
+        pinchState.initialDistance = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
         pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
-        clearTimeout(gameState.dragState.longPressTimer);
-        if (gameState.dragState.activePlate) {
-            gameState.dragState.movingGroup.forEach(item => updateBlockState(item.block, {x: item.initialX}));
-            gameState.dragState.activePlate = null;
-            gameState.dragState.movingGroup = [];
-            gameState.dragState.isDragging = false;
+
+        clearTimeout(dragState.longPressTimer);
+
+        if (dragState.activePlate) {
+            const movingGroup = dragState.movingGroup;
+            for (let i = 0, len = movingGroup.length; i < len; i++) {
+                updateBlockState(movingGroup[i].block, {x: movingGroup[i].initialX});
+            }
+            dragState.activePlate = null;
+            dragState.movingGroup = [];
+            dragState.isDragging = false;
             clearHoverPreview(true);
         }
         return;
     }
+
     const clickedPlate = e.target.closest('.plate');
     if (!clickedPlate) return;
-    gameState.dragState.hasMoved = false;
+
     if (e.type === 'mousedown') e.preventDefault();
     if (currentSolution) clearSolutionUI();
-    gameState.dragState.activePlate = clickedPlate;
-    gameState.dragState.startInputX = getClientX(e);
-    gameState.dragState.isDragging = false;
-    gameState.dragState.movingGroup = [];
-    updateHoverPreview(gameState.dragState.activePlate);
-    const clickedId = parseInt(gameState.dragState.activePlate.dataset.id);
-    let clickedBlock = gameState.blocks.find(b => b.id === clickedId);
+
+    dragState.hasMoved = false;
+    dragState.activePlate = clickedPlate;
+    dragState.startInputX = getClientX(e);
+    dragState.isDragging = false;
+    dragState.movingGroup.length = 0;
+
+    updateHoverPreview(clickedPlate);
+
+    const clickedId = +clickedPlate.dataset.id;
+    const blocks = gameState.blocks;
+
+    const clickedBlock = blocks.find(b => b.id === clickedId);
     if (!clickedBlock) return;
-    Object.keys(clickedBlock.group).forEach(idStr => {
-        let id = parseInt(idStr),
-            dir = clickedBlock.group[id],
-            b = gameState.blocks.find(x => x.id === id);
-        if (b) {
-            gameState.dragState.movingGroup.push({block: b, dir: dir, initialX: b.x});
-            //todo
-            b.el.style.transition = 'none';
-            b.pinWrapper.style.transition = 'none';
-        }
-    });
 
     let minD = -Infinity, maxD = Infinity;
-    const movingGroup = gameState.dragState.movingGroup;
-    const groupLen = movingGroup.length;
 
-    for (let i = 0; i < groupLen; i++) {
+    const group = clickedBlock.group;
+    for (const idStr in group) {
         const
-            item = movingGroup[i],
-            initial = item.initialX,
-            dir = item.dir === 1,
-            minBound = dir ? -MAX_DELTA_LIMIT - initial : initial - MAX_DELTA_LIMIT,
-            maxBound = dir ? MAX_DELTA_LIMIT - initial : initial + MAX_DELTA_LIMIT;
+            id = +idStr,
+            b = blocks.find(x => x.id === id),
+            dirVal = group[idStr];
 
-        if (minBound > minD) minD = minBound;
-        if (maxBound < maxD) maxD = maxBound;
+        if (b) {
+            const initial = b.x;
+            dragState.movingGroup.push({block: b, dir: dirVal, initialX: initial});
+            b.el.style.transition = 'none';
+            b.pinWrapper.style.transition = 'none';
+            const
+                dir = dirVal === 1,
+                minBound = dir ? -MAX_DELTA_LIMIT - initial : initial - MAX_DELTA_LIMIT,
+                maxBound = dir ? MAX_DELTA_LIMIT - initial : initial + MAX_DELTA_LIMIT;
+
+            if (minBound > minD) minD = minBound;
+            if (maxBound < maxD) maxD = maxBound;
+        }
     }
 
-    gameState.dragState.minDeltaX = minD;
-    gameState.dragState.maxDeltaX = maxD;
-
+    dragState.minDeltaX = minD;
+    dragState.maxDeltaX = maxD;
     gameState.lastAction = 'handleDragStart';
     longPress(clickedId);
 }
@@ -861,8 +875,8 @@ function handleDragMove(e) {
 function handleDragEnd(e) {
 
     const
-        { dragState } = gameState,
-        { activePlate, movingGroup, isDragging } = dragState;
+        {dragState} = gameState,
+        {activePlate, movingGroup, isDragging} = dragState;
 
     if (e?.changedTouches) gameState.lastTouchTime = Date.now();
     if ((e?.touches?.length ?? 0) < 2) document.body.classList.remove('is-zooming');
@@ -886,7 +900,7 @@ function handleDragEnd(e) {
 
         for (const item of movingGroup) {
             const cx = item.currentX ?? item.initialX,
-                  cxDir = cx * item.dir;
+                cxDir = cx * item.dir;
             maxAllowedShiftLeft = Math.max(maxAllowedShiftLeft, -MAX_DELTA_LIMIT - cxDir);
             maxAllowedShiftRight = Math.min(maxAllowedShiftRight, MAX_DELTA_LIMIT - cxDir);
         }
@@ -1209,7 +1223,11 @@ async function runTutorialStep(version) {
         gameState.blocks.filter(b => b.x !== 0).forEach(b => {
             b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched');
             b.el.querySelector('.front-face').style.borderColor = '';
-            updateBlockState(b, {x: 0, transition: 'transform 0.5s ease', pinTime: b.pin.style.transform.includes(`translateZ(${PIN_RAISED}px`) ? null : 400})
+            updateBlockState(b, {
+                x: 0,
+                transition: 'transform 0.5s ease',
+                pinTime: b.pin.style.transform.includes(`translateZ(${PIN_RAISED}px`) ? null : 400
+            })
         });
 
         if (6 !== parseInt(countInput.value) && 3 !== tutorialStep) {
