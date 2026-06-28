@@ -223,7 +223,6 @@
             const block = gameState.blocks[0];
 
             let clientX = 100;
-            let scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
 
             block.el.dispatchEvent(new MouseEvent('mousedown', {
                 clientX: clientX,
@@ -233,7 +232,7 @@
             assert.equal(gameState.dragState.activePlate, block.el, 'Mousedown successfully initializes activePlate');
             assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), 'Pin remains raised immediately on drag start');
 
-            let halfX = clientX + (HOLE_SPACING / 2) * scale;
+            let halfX = clientX + (HOLE_SPACING / 2) * pinchState.initialScale;
             document.dispatchEvent(new MouseEvent('mousemove', {
                 clientX: halfX,
                 bubbles: true
@@ -245,12 +244,8 @@
             const s = block.el.style.transform.indexOf('X'),
                 x = -block.el.style.transform.substring(s + 2, block.el.style.transform.length - 3);
             assert.ok(block.pinWrapper.style.transform.includes(`translateX(${x}px)`), 'pinWrapper offsets dynamically by negative half step during halfway drag');
-
-            let fullX = clientX + (HOLE_SPACING) * scale;
-            document.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: fullX,
-                bubbles: true
-            }));
+            let fullX = clientX + (HOLE_SPACING) * pinchState.initialScale;
+            document.dispatchEvent(new MouseEvent('mousemove', {clientX: fullX, bubbles: true}));
 
             assert.strictEqual(block.pin.dataset.wasOverHole, "true", 'Pin evaluates as over hole when drag reaches next hole');
             //current coords
@@ -476,8 +471,16 @@
             let clientX = 100;
             block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
 
+            let countTimers_0 = clock.countTimers();
+
+            assert.strictEqual(gameState.dragState.hasMoved, false, 'Baseline: hasMoved starts as false');
+            assert.strictEqual(gameState.dragState.isDragging, false, 'Baseline: isDragging starts as false');
+
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: clientX + DRAG_THRESHOLD, bubbles: true}));
 
+            assert.strictEqual(gameState.dragState.hasMoved, true, 'hasMoved flips to true immediately upon move, regardless of threshold');
+            assert.strictEqual(gameState.lastAction, 'handleDragMove', 'gameState.lastAction is correctly set at the end of the function');
+            assert.strictEqual(clock.countTimers(), countTimers_0, 'Long press timer is NOT cleared because threshold was not exceeded');
             assert.strictEqual(gameState.dragState.isDragging, false, 'Does not trigger dragging behavior if moved below the threshold');
         });
 
@@ -488,13 +491,19 @@
             block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
 
             let countTimers_0 = clock.countTimers();
-            assert.equal(countTimers_0, 1);
+            assert.equal(countTimers_0, 1, 'Baseline: Timer is set on mousedown');
 
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: clientX + DRAG_THRESHOLD + 1, bubbles: true}));
 
             let countTimers_1 = clock.countTimers();
+
+            assert.strictEqual(gameState.dragState.hasMoved, true, 'hasMoved flips to true upon moving');
+            assert.strictEqual(gameState.lastAction, 'handleDragMove', 'gameState.lastAction is correctly updated');
+            assert.ok(gameState.dragState.movingGroup.length > 0, 'movingGroup array is populated');
+            assert.notEqual(gameState.dragState.movingGroup[0].currentX, gameState.dragState.movingGroup[0].initialX, 'movingGroup item currentX state is successfully updated based on delta');
+            assert.strictEqual(block.x, gameState.dragState.movingGroup[0].currentX, 'block.x state was synced properly by updateBlockState()');
             assert.strictEqual(gameState.dragState.isDragging, true, 'isDragging flag flips to true after crossing the threshold');
-            assert.equal(countTimers_1, 0, "Long press is cleaned");
+            assert.equal(countTimers_1, 0, "Long press timer is cleaned up since dragging started");
             assert.notEqual(block.el.style.transition, 'transform 0.2s ease-out', 'Transition is removed so block drags immediately without lag');
             assert.equal(block.el.style.transform, `translateZ(${block.z}px) translateX(${block.x.toFixed(5)}px)`, 'Transform dynamically updates while dragging');
         });

@@ -52,7 +52,7 @@ const gameState = {
     lastAction: null,
     isHovering: false
 };
-const pinchState = {initialDistance: 0, initialScale: 1};
+const pinchState = {initialDistance: 0, initialScale: 0, lastScale: 0};
 
 if (gameState.isMobile) squashMovesCheck.checked = false;
 
@@ -330,6 +330,8 @@ function setInitialScale() {
     } else {
         const initialScale = 1.4;
         document.documentElement.style.setProperty('--block-scale', initialScale);
+        pinchState.initialScale = initialScale
+        pinchState.lastScale = initialScale
         sizeInput.value = initialScale;
     }
 }
@@ -777,6 +779,26 @@ function handleDragStart(e) {
             b.pinWrapper.style.transition = 'none';
         }
     });
+
+    let minD = -Infinity, maxD = Infinity;
+    const movingGroup = gameState.dragState.movingGroup;
+    const groupLen = movingGroup.length;
+
+    for (let i = 0; i < groupLen; i++) {
+        const
+            item = movingGroup[i],
+            initial = item.initialX,
+            dir = item.dir === 1,
+            minBound = dir ? -MAX_DELTA_LIMIT - initial : initial - MAX_DELTA_LIMIT,
+            maxBound = dir ? MAX_DELTA_LIMIT - initial : initial + MAX_DELTA_LIMIT;
+
+        if (minBound > minD) minD = minBound;
+        if (maxBound < maxD) maxD = maxBound;
+    }
+
+    gameState.dragState.minDeltaX = minD;
+    gameState.dragState.maxDeltaX = maxD;
+
     gameState.lastAction = 'handleDragStart';
     longPress(clickedId);
 }
@@ -784,41 +806,55 @@ function handleDragStart(e) {
 function handleDragMove(e) {
     if (e.touches && 2 === e.touches.length) {
         e.preventDefault();
+        const t1 = e.touches[0], t2 = e.touches[1];
+
         if (!pinchState.initialDistance) {
-            pinchState.initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            pinchState.initialScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1;
+            const dx = t1.clientX - t2.clientX;
+            const dy = t1.clientY - t2.clientY;
+            pinchState.initialDistance = Math.hypot(dx, dy);
+            pinchState.initialScale = pinchState.lastScale;
         }
-        const currentDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        let newScale = pinchState.initialScale * (currentDistance / pinchState.initialDistance);
-        if (newScale < 0.3) newScale = 0.3;
-        if (newScale > 2) newScale = 2;
-        document.documentElement.style.setProperty('--block-scale', newScale);
-        sizeInput.value = newScale;
+
+        const currentDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        let newScale = Math.max(0.3, Math.min(pinchState.initialScale * (currentDistance / pinchState.initialDistance), 2));
+
+        if (pinchState.lastScale !== newScale) {
+            document.documentElement.style.setProperty('--block-scale', newScale);
+            sizeInput.value = newScale;
+            pinchState.lastScale = newScale;
+        }
         return;
     }
-    if (!gameState.dragState.activePlate || 0 === gameState.dragState.movingGroup.length || gameState.activeLinkerId) return;
-    gameState.dragState.hasMoved = true;
-    let clientX = getClientX(e);
-    if (Math.abs(clientX - gameState.dragState.startInputX) > DRAG_THRESHOLD) {
-        gameState.dragState.isDragging = true;
-        clearTimeout(gameState.dragState.longPressTimer);
-    }
-    const
-        scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')) || 1,
-        rawDeltaX = (clientX - gameState.dragState.startInputX) / scale;
 
-    let minDeltaX = -Infinity,
-        maxDeltaX = Infinity;
-    gameState.dragState.movingGroup.forEach(item => {
-        const dir = (1 === item.dir);
-        minDeltaX = Math.max(minDeltaX, dir ? -MAX_DELTA_LIMIT - item.initialX : item.initialX - MAX_DELTA_LIMIT);
-        maxDeltaX = Math.min(maxDeltaX, dir ? MAX_DELTA_LIMIT - item.initialX : item.initialX + MAX_DELTA_LIMIT);
-    });
-    const deltaX = Math.max(minDeltaX, Math.min(rawDeltaX, maxDeltaX));
-    gameState.dragState.movingGroup.forEach(item => {
+    const
+        dragState = gameState.dragState,
+        movingGroup = dragState.movingGroup,
+        groupLen = movingGroup.length;
+
+    if (!dragState.activePlate || groupLen === 0 || gameState.activeLinkerId) return;
+
+    dragState.hasMoved = true;
+
+    const
+        clientX = getClientX(e),
+        rawDistX = clientX - dragState.startInputX;
+
+    if (!dragState.isDragging && Math.abs(rawDistX) > DRAG_THRESHOLD) {
+        dragState.isDragging = true;
+        clearTimeout(dragState.longPressTimer);
+    }
+
+    const
+        scale = pinchState.lastScale || parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')),
+        rawDeltaX = rawDistX / scale,
+        deltaX = Math.max(dragState.minDeltaX, Math.min(rawDeltaX, dragState.maxDeltaX));
+
+    for (let i = 0; i < groupLen; i++) {
+        const item = movingGroup[i];
         item.currentX = item.initialX + (deltaX * item.dir);
         updateBlockState(item.block, {x: item.currentX});
-    });
+    }
+
     gameState.lastAction = 'handleDragMove';
 }
 
@@ -1125,6 +1161,7 @@ function setInitialMobileScale() {
         }
         if (typeof pinchState !== 'undefined') {
             pinchState.initialScale = startScale;
+            pinchState.lastScale = startScale;
         }
     }
 }
@@ -1169,10 +1206,10 @@ async function runTutorialStep(version) {
     function clean() {
         tutorialArrow.style.display = 'none';
 
-        gameState.blocks.filter(b => b.x !== 0 || !b.pin.style.transform.includes(`translateZ(${PIN_RAISED}px`)).forEach(b => {
+        gameState.blocks.filter(b => b.x !== 0).forEach(b => {
             b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched');
             b.el.querySelector('.front-face').style.borderColor = '';
-            updateBlockState(b, {x: 0, transition: 'transform 0.5s ease', pinTime: 400})
+            updateBlockState(b, {x: 0, transition: 'transform 0.5s ease', pinTime: b.pin.style.transform.includes(`translateZ(${PIN_RAISED}px`) ? null : 400})
         });
 
         if (6 !== parseInt(countInput.value) && 3 !== tutorialStep) {
