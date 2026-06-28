@@ -31,30 +31,44 @@ const lock = document.getElementById('lock'),
     ONE_OVER_HOLE_SPACING = 1 / HOLE_SPACING
 ;
 
-let currentSolution = null;
-let currentStepIndex = 0;
-let isPlaying = false;
-let moveMap = [];
-
-const gameState = {
-    blocks: [],
-    activeLinkerId: null,
-    dragState: {
-        activePlate: null,
-        startInputX: 0,
-        movingGroup: [],
-        isDragging: false,
-        longPressTimer: null,
-        hasMoved: false,
+const
+    gameState = {
+        blocks: [],
+        activeLinkerId: null,
+        dragState: {
+            activePlate: null,
+            startInputX: 0,
+            movingGroup: [],
+            isDragging: false,
+            longPressTimer: null,
+            hasMoved: false,
+        },
+        isMobile: 768 >= window.innerWidth,
+        lastTouchTime: 0,
+        lastAction: null,
+        isHovering: false
     },
-    isMobile: 768 >= window.innerWidth,
-    lastTouchTime: 0,
-    lastAction: null,
-    isHovering: false
-};
-const pinchState = {initialDistance: 0, initialScale: 0, lastScale: 0};
+    pinchState = {initialDistance: 0, initialScale: 0, lastScale: 0};
+
+function setInitialScale() {
+    pinchState.initialScale = gameState.isMobile
+        // The plate mechanism is ~340px wide. We scale it down to fit the device width.
+        // We subtract 140px to account for some padding/margins.
+        ? Math.max(0.3, Math.min((window.innerWidth - 140) / 340, 1))
+        : 1.4
+    pinchState.lastScale = pinchState.initialScale
+    sizeInput.value = pinchState.initialScale;
+    document.documentElement.style.setProperty('--block-scale', pinchState.initialScale);
+}
+
+setInitialScale();
 
 if (gameState.isMobile) squashMovesCheck.checked = false;
+
+let currentSolution = null,
+    currentStepIndex = 0,
+    isPlaying = false,
+    moveMap = [];
 
 function setStatus(text, type = 'info') {
     statusMsg.textContent = text;
@@ -323,20 +337,6 @@ restartSeqBtn.addEventListener('click', () => {
     setStatus(`Solution found: ${currentSolution.length} moves!`, "success");
     updatePlaybackUI();
 });
-
-function setInitialScale() {
-    if (gameState.isMobile) {
-        setInitialMobileScale()
-    } else {
-        const initialScale = 1.4;
-        document.documentElement.style.setProperty('--block-scale', initialScale);
-        pinchState.initialScale = initialScale
-        pinchState.lastScale = initialScale
-        sizeInput.value = initialScale;
-    }
-}
-
-setInitialScale();
 
 
 function vibrate(duration) {
@@ -1158,26 +1158,6 @@ function positionArrowRelative(target, offsetX = 0, offsetY = 0) {
     tutorialArrow.style.top = `${rect.top + offsetY}px`;
     tutorialArrow.style.left = `${rect.left + offsetX}px`;
     tutorialArrow.style.display = 'block';
-}
-
-function setInitialMobileScale() {
-    if (window.innerWidth <= 768) {
-        // The plate mechanism is ~340px wide. We scale it down to fit the device width.
-        // We subtract 140px to account for some padding/margins.
-        let startScale = (window.innerWidth - 140) / 340;
-
-        startScale = Math.max(0.3, Math.min(startScale, 1));
-        document.documentElement.style.setProperty('--block-scale', startScale);
-
-        const sizeInput = document.getElementById('sizeInput');
-        if (sizeInput) {
-            sizeInput.value = startScale;
-        }
-        if (typeof pinchState !== 'undefined') {
-            pinchState.initialScale = startScale;
-            pinchState.lastScale = startScale;
-        }
-    }
 }
 
 function startTutorial() {
