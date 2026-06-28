@@ -823,46 +823,60 @@ function handleDragMove(e) {
 }
 
 function handleDragEnd(e) {
-    if (e && e.changedTouches) gameState.lastTouchTime = Date.now();
-    if (!e || !e.touches || e.touches.length < 2) document.body.classList.remove('is-zooming');
-    pinchState.initialDistance = 0;
-    clearTimeout(gameState.dragState.longPressTimer);
-    if (gameState.dragState.activePlate) clearHoverPreview();
-    if (gameState.dragState.activePlate && 0 < gameState.dragState.movingGroup.length && true === gameState.dragState.isDragging) {
-        const clickedId = parseInt(gameState.dragState.activePlate.dataset.id);
-        let primary = gameState.dragState.movingGroup.find(item => item.block.id === clickedId) || gameState.dragState.movingGroup[0],
-            currentX = undefined !== primary.currentX ? primary.currentX : primary.initialX,
-            holeIndex = Math.round(currentX / HOLE_SPACING),
-            snappedX = holeIndex * HOLE_SPACING,
-            snapDelta = snappedX - currentX,
-            maxAllowedShiftRight = Infinity,
-            maxAllowedShiftLeft = -Infinity;
 
-        gameState.dragState.movingGroup.forEach(item => {
-            let dir = 1 === item.dir,
-                //todo is there any time null of item.currentX?
-                cx = undefined !== item.currentX ? item.currentX : item.initialX,
-                limitLeft = dir ? -MAX_DELTA_LIMIT - cx : cx - MAX_DELTA_LIMIT,
-                limitRight = dir ? MAX_DELTA_LIMIT - cx : cx + MAX_DELTA_LIMIT;
-            if (limitLeft > maxAllowedShiftLeft) maxAllowedShiftLeft = limitLeft;
-            if (limitRight < maxAllowedShiftRight) maxAllowedShiftRight = limitRight;
-        });
-        if (snapDelta < maxAllowedShiftLeft) snapDelta = maxAllowedShiftLeft;
-        if (snapDelta > maxAllowedShiftRight) snapDelta = maxAllowedShiftRight;
-        gameState.dragState.movingGroup.forEach(item => {
-            let cx = undefined !== item.currentX ? item.currentX : item.initialX;
+    const
+        { dragState } = gameState,
+        { activePlate, movingGroup, isDragging } = dragState;
+
+    if (e?.changedTouches) gameState.lastTouchTime = Date.now();
+    if ((e?.touches?.length ?? 0) < 2) document.body.classList.remove('is-zooming');
+
+    pinchState.initialDistance = 0;
+    clearTimeout(dragState.longPressTimer);
+
+    if (activePlate) clearHoverPreview();
+
+    if (activePlate && movingGroup.length > 0 && isDragging) {
+
+        const
+            clickedId = parseInt(activePlate.dataset.id),
+            primary = movingGroup.find(item => item.block.id === clickedId) || movingGroup[0],
+            currentX = primary.currentX ?? primary.initialX,
+            holeIndex = Math.round(currentX / HOLE_SPACING);
+
+        let snapDelta = (holeIndex * HOLE_SPACING) - currentX,
+            maxAllowedShiftLeft = -Infinity,
+            maxAllowedShiftRight = Infinity;
+
+        for (const item of movingGroup) {
+            const cx = item.currentX ?? item.initialX,
+                  cxDir = cx * item.dir;
+            maxAllowedShiftLeft = Math.max(maxAllowedShiftLeft, -MAX_DELTA_LIMIT - cxDir);
+            maxAllowedShiftRight = Math.min(maxAllowedShiftRight, MAX_DELTA_LIMIT - cxDir);
+        }
+
+        snapDelta = Math.max(maxAllowedShiftLeft, Math.min(snapDelta, maxAllowedShiftRight));
+
+        for (const item of movingGroup) {
+            const cx = item.currentX ?? item.initialX;
             updateBlockState(item.block, {x: cx + (snapDelta * item.dir), transition: 'transform 0.2s ease-out'});
-        });
+        }
     }
-    gameState.dragState.activePlate = null;
-    gameState.dragState.movingGroup = [];
-    gameState.dragState.isDragging = false;
-    gameState.lastAction = gameState.lastAction === 'deselectDragEnd' ? gameState.lastAction : 'handleDragEnd';
-    if (e && 'mouseup' === e.type) {
-        if ((Date.now() - (gameState.lastTouchTime || 0) < 500) || gameState.lastAction === 'deselectDragEnd') return;
-        const elementUnderCursor = document.elementFromPoint(e.clientX, e.clientY);
-        const plateUnderCursor = elementUnderCursor ? elementUnderCursor.closest('.plate') : null;
-        if (plateUnderCursor) updateHoverPreview(plateUnderCursor);
+
+    dragState.activePlate = null;
+    dragState.movingGroup = [];
+    dragState.isDragging = false;
+
+    if ('deselectDragEnd' !== gameState.lastAction) {
+        gameState.lastAction = 'handleDragEnd';
+    }
+
+    if (e?.type === 'mouseup') {
+        const timeSinceTouch = Date.now() - (gameState.lastTouchTime || 0);
+        if (timeSinceTouch >= 500 && 'deselectDragEnd' !== gameState.lastAction) {
+            const plateUnderCursor = document.elementFromPoint(e.clientX, e.clientY)?.closest('.plate');
+            if (plateUnderCursor) updateHoverPreview(plateUnderCursor);
+        }
     }
 }
 

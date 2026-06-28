@@ -505,6 +505,9 @@
         QUnit.test('handleDragEnd() snaps plate forward to the nearest grid spacing and cements snap styles', assert => {
             const block = gameState.blocks[0];
 
+            gameState.lastAction = 'dragging';
+            pinchState.initialDistance = 50;
+
             let clientX = 100;
             block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: clientX + HOLE_SPACING + 1, bubbles: true}));
@@ -516,14 +519,16 @@
             }));
 
             assert.strictEqual(block.x, HOLE_SPACING, 'Plate snaps forward mathematically to the exact HOLE_SPACING boundary');
-            assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging cleanly resets to false after drop');
-
-            // Assert smooth snapping styles
             assert.equal(block.el.style.transition, 'transform 0.2s ease-out', 'Restores smooth transition for snap animation');
             assert.equal(block.el.style.transform, `translateZ(${block.z}px) translateX(${block.x}px)`, 'Transform correctly snaps to grid');
+            assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging cleanly resets to false');
+            assert.strictEqual(gameState.dragState.activePlate, null, 'activePlate is cleared to null');
+            assert.deepEqual(gameState.dragState.movingGroup, [], 'movingGroup array is emptied');
+            assert.strictEqual(gameState.lastAction, 'handleDragEnd', 'lastAction updates to handleDragEnd');
+            assert.strictEqual(pinchState.initialDistance, 0, 'pinchState.initialDistance resets to 0');
         });
 
-        QUnit.test('handleDragEnd() snaps plate back if dragged less than half a grid spacing and cements snap styles', assert => {
+        QUnit.test('handleDragEnd() snaps plate back if dragged less than half a grid spacing and clears all drag states', assert => {
             const block = gameState.blocks[0];
             block.x = HOLE_SPACING;
 
@@ -540,6 +545,36 @@
             assert.strictEqual(block.x, 0, 'Plate accurately snaps backward to the original resting position');
             assert.equal(block.el.style.transition, 'transform 0.2s ease-out', 'Restores smooth transition for snap-back animation');
             assert.equal(block.el.style.transform, `translateZ(${block.z}px) translateX(${block.x}px)`, 'Transform correctly resets to original resting state');
+            assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging cleanly resets to false');
+            assert.strictEqual(gameState.dragState.activePlate, null, 'activePlate is cleared to null');
+            assert.deepEqual(gameState.dragState.movingGroup, [], 'movingGroup array is emptied');
+            assert.strictEqual(gameState.lastAction, 'handleDragEnd', 'lastAction updates to handleDragEnd');
+        });
+
+        QUnit.test('handleDragEnd() preserves lastAction if it was set to "deselectDragEnd"', assert => {
+            const block = gameState.blocks[0];
+
+            let clientX = 100,
+                eventInitDict = {bubbles: true, clientX};
+
+            block.el.dispatchEvent(new MouseEvent('mousedown', eventInitDict));
+            gameState.lastAction = 'deselectDragEnd';
+            window.dispatchEvent(new MouseEvent('mouseup', eventInitDict));
+
+            assert.strictEqual(gameState.lastAction, 'deselectDragEnd', 'lastAction is not overwritten if it was previously "deselectDragEnd"');
+        });
+
+        QUnit.test('handleDragEnd() records lastTouchTime when triggered by a touch event', assert => {
+            const block = gameState.blocks[0];
+            const beforeTouch = Date.now();
+
+            const touchEvent = new Event('touchend', { bubbles: true });
+            touchEvent.changedTouches = [{ clientX: 100, clientY: 100 }];
+
+            window.dispatchEvent(touchEvent);
+
+            assert.ok(gameState.lastTouchTime >= beforeTouch, 'lastTouchTime was successfully updated with the current timestamp');
+            assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging still resets on touch end');
         });
     });
 
