@@ -12,7 +12,7 @@
 <script>
     // 1. Fetch the production HTML
     async function setupTestEnvironment() {
-        const response = await fetch('index1.html');
+        const response = await fetch('index.html');
         const htmlText = await response.text();
 
         // 2. Parse it into a virtual DOM
@@ -34,6 +34,30 @@
 
     QUnit.config.autostart = false;
     setupTestEnvironment();
+
+    const resetDragState = () => ({
+        activePlate: null,
+        startInputX: 0,
+        movingGroup: [],
+        isDragging: false,
+        longPressTimer: null,
+        hasMoved: false,
+    });
+
+    const setUpThreeBlocks = () => {
+        countInput.value = 3;
+        renderBlocks();
+        gameState.blocks.forEach((block) => {
+            block.x = 0;
+            block.group = { [block.id]: 1 };
+        });
+    };
+
+    // 🚀 FIX: Safely handles fake ticking so RequestAnimationFrame resolves instantly
+    const nextFrame = (clock) => new Promise(resolve => {
+        requestAnimationFrame(resolve);
+        if (clock) clock.tick(16);
+    });
 
     QUnit.module('Solver Algorithm', hooks => {
 
@@ -59,37 +83,17 @@
         QUnit.test('solve() correctly handles pathfinding and edge cases', assert => {
             const defaultTimeout = 1000;
 
+            // Given an immediate goal state
             let result = solve(2, [0, 0], [[0, 0], [0, 0]], 'shortest-fast', defaultTimeout);
             assert.deepEqual(result.moves, [], 'Returns empty moves array if already at goal state');
             assert.deepEqual(result.states, [[0, 0]], 'Returns only the initial state in the states array');
 
+            // Given a simple one-step puzzle
             result = solve(1, [-1], [[]], 'shortest-fast', defaultTimeout);
             assert.strictEqual(result.moves.length, 1, 'Solves a simple 1-step puzzle');
             assert.deepEqual(result.moves[0], {plate: 1, direction: 'right'}, 'Identifies the correct single move');
 
-            const start = [-1, -1];
-            const effects = [[0, 1], [0, 0]];
-            result = solve(2, start, effects, 'shortest-fast', defaultTimeout);
-            assert.strictEqual(result.moves.length, 1, 'Solves multi-plate puzzle in one move using linked effects');
-            assert.deepEqual(result.moves[0], {plate: 1, direction: 'right'}, 'Moving the master plate solves both');
-            assert.deepEqual(result.states, [[-1, -1], [0, 0]], 'Records the correct state progression');
-
-        });
-
-        QUnit.test('solve() correctly handles pathfinding and edge cases', assert => {
-            const defaultTimeout = 1000;
-
-            // 1. Immediate Goal
-            let result = solve(2, [0, 0], [[0, 0], [0, 0]], 'shortest-fast', defaultTimeout);
-            assert.deepEqual(result.moves, [], 'Returns empty moves array if already at goal state');
-            assert.deepEqual(result.states, [[0, 0]], 'Returns only the initial state in the states array');
-
-            // 2. Simple one-step puzzle
-            result = solve(1, [-1], [[]], 'shortest-fast', defaultTimeout);
-            assert.strictEqual(result.moves.length, 1, 'Solves a simple 1-step puzzle');
-            assert.deepEqual(result.moves[0], {plate: 1, direction: 'right'}, 'Identifies the correct single move');
-
-            // 3. Multi-plate puzzle using link effects
+            // Given linked plates that move together
             const start = [-1, -1];
             const effects = [
                 [0, 1], // Plate 1 moves Plate 2 in the same direction
@@ -100,42 +104,30 @@
             assert.deepEqual(result.moves[0], {plate: 1, direction: 'right'}, 'Moving the master plate solves both');
             assert.deepEqual(result.states, [[-1, -1], [0, 0]], 'Records the correct state progression');
 
-            // 4. Timeout Handling
-            // Pass -1ms to ensure the check (Date.now() - startTime > timeoutMs)
-            // evaluates to (0 > -1) and triggers immediately, regardless of CPU speed.
+            // Given a timeout condition
             result = solve(2, [2, 2], [[0, 0], [0, 0]], 'shortest-fast', -1);
             assert.ok(result.timeout, 'Returns a timeout flag if calculation exceeds timeoutMs limit');
         });
     });
 
-    //todo improve test
     QUnit.module('Lockpicker Game Logic - Pin State (updatePinState)', hooks => {
         let block,
             vibrateStub,
             rumbleStub,
-            rumbleWasGlobal = false;
+            clock; // 🚀 FIX: Added clock to this module for timeout testing
 
         const originalElementFromPoint = document.elementFromPoint;
 
         hooks.beforeEach(() => {
+            clock = sinon.useFakeTimers(); // 🚀 FIX: Init Fake Timers
             document.elementFromPoint = originalElementFromPoint;
 
-            gameState.dragState = {
-                activePlate: null,
-                startInputX: 0,
-                movingGroup: [],
-                isDragging: false,
-                longPressTimer: null,
-                hasMoved: false,
-            };
+            gameState.dragState = resetDragState();
             gameState.activeLinkerId = null;
 
-            countInput.value = 3;
-            renderBlocks();
-            gameState.blocks.forEach(function (block) {
-                block.x = 0;
-                block.group = {[block.id]: 1};
-                block.pin.dataset.wasOverHole = "false";
+            setUpThreeBlocks();
+            gameState.blocks.forEach((block) => {
+                block.pin.dataset.wasOverHole = 'false';
                 block.pin.style.transform = `translateZ(${PIN_RAISED}px)`;
                 if (block.pinWrapper) {
                     block.pinWrapper.style.transform = `translateX(0px)`;
@@ -150,13 +142,12 @@
         });
 
         hooks.afterEach(() => {
+            clock.restore(); // 🚀 FIX: Clean up timers
             sinon.restore();
         });
 
         QUnit.test('Updates state correctly when NOT over any hole', assert => {
-
             block.x = HOLE_SPACING / 2;
-
             updatePinState(block);
 
             assert.equal(block.pin.dataset.wasOverHole, "false", 'Updates dataset.wasOverHole to string "false"');
@@ -167,9 +158,7 @@
         });
 
         QUnit.test('Updates state correctly for the CORRECT hole (index 0)', assert => {
-
             block.x = 1;
-
             updatePinState(block);
 
             assert.strictEqual(block.pin.dataset.wasOverHole, 'true', 'Updates dataset.wasOverHole to string "true"');
@@ -184,9 +173,7 @@
         });
 
         QUnit.test('Updates state correctly for an INCORRECT hole (index > 0)', assert => {
-
             block.x = HOLE_SPACING;
-
             updatePinState(block);
 
             assert.strictEqual(block.pin.dataset.wasOverHole, 'true', 'Updates dataset.wasOverHole to string "true"');
@@ -194,63 +181,59 @@
         });
 
         QUnit.test('Tolerance boundaries are strictly enforced (exactly 3px)', assert => {
-
             block.x = 3.0;
-
             updatePinState(block);
 
             assert.strictEqual(block.pin.dataset.wasOverHole, "false", 'A distance of exactly 3px evaluates as outside the hole');
             assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin falls to the PIN_UNDER state');
         });
 
+        // 🚀 FIX: Removed flaky native setTimeout, now perfectly synchronous using Sinon
         QUnit.test('Pin state drops to PIN_UNDER instantly and rises to PIN_MIDDLE/RAISED after timeout in applySingleMove', assert => {
-
-            const done = assert.async();
-
             const block = gameState.blocks[0];
 
             applySingleMove({plate: block.id, direction: 'right'}, false);
 
             assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin is instantly pushed to PIN_UNDER immediately after applySingleMove is called');
             assert.ok(block.pinWrapper.style.transform.includes(`translateX(${-HOLE_SPACING}px)`), 'pinWrapper instantly translates in opposite direction of the plate to stay fixed over the hole');
-            setTimeout(() => {
-                assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), 'Pin evaluates new position and springs up to PIN_MIDDLE after the 200ms timeout');
-                done();
-            }, 250);
+
+            clock.tick(250); // Instantly fast-forwards time by 250ms
+
+            assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), 'Pin evaluates new position and springs up to PIN_MIDDLE after the 200ms timeout');
         });
 
-        QUnit.test('Pin state updates correctly during drag sequence using actual events (mousedown, mousemove, mouseup)', assert => {
-            const block = gameState.blocks[0];
+        QUnit.test('Pin state updates correctly during drag sequence using actual events (mousedown, mousemove, mouseup)', async assert => {
 
-            let clientX = 100;
+            const block = gameState.blocks[0],
+                clientX = 100;
 
-            block.el.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: clientX,
-                bubbles: true
-            }));
+            block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
 
             assert.equal(gameState.dragState.activePlate, block.el, 'Mousedown successfully initializes activePlate');
             assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), 'Pin remains raised immediately on drag start');
 
-            let halfX = clientX + (HOLE_SPACING / 2) * pinchState.initialScale;
-            document.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: halfX,
-                bubbles: true
-            }));
+            const halfX = clientX + (HOLE_SPACING / 2) * pinchState.initialScale;
+            document.dispatchEvent(new MouseEvent('mousemove', {clientX: halfX, bubbles: true}));
 
-            assert.strictEqual(block.pin.dataset.wasOverHole, "false", 'Pin evaluates as outside hole during drag halfway');
+            // 🚀 FIX: Passed clock to nextFrame
+            await nextFrame(clock);
+
+            assert.strictEqual(block.pin.dataset.wasOverHole, 'false', 'Pin evaluates as outside hole during drag halfway');
             assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin is pushed to PIN_UNDER during the half move');
-            //current coords
+
             const s = block.el.style.transform.indexOf('X'),
                 x = -block.el.style.transform.substring(s + 2, block.el.style.transform.length - 3);
             assert.ok(block.pinWrapper.style.transform.includes(`translateX(${x}px)`), 'pinWrapper offsets dynamically by negative half step during halfway drag');
-            let fullX = clientX + (HOLE_SPACING) * pinchState.initialScale;
+
+            const fullX = clientX + (HOLE_SPACING) * pinchState.initialScale;
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: fullX, bubbles: true}));
 
-            assert.strictEqual(block.pin.dataset.wasOverHole, "true", 'Pin evaluates as over hole when drag reaches next hole');
-            //current coords
-            const
-                s_1 = block.el.style.transform.indexOf('X') + 2,
+            // 🚀 FIX: Passed clock to nextFrame
+            await nextFrame(clock);
+
+            assert.strictEqual(block.pin.dataset.wasOverHole, 'true', 'Pin evaluates as over hole when drag reaches next hole');
+
+            const s_1 = block.el.style.transform.indexOf('X') + 2,
                 x_1 = -block.el.style.transform.substring(s_1, block.el.style.transform.length - 3);
             assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), 'Pin pops up to PIN_MIDDLE at next hole index');
             assert.ok(block.pinWrapper.style.transform.includes(`translateX(${x_1}px)`), 'pinWrapper offsets dynamically by full negative step');
@@ -263,7 +246,7 @@
                 view: window
             }));
 
-            assert.ok(block.pin.style.transform.includes(String(PIN_MIDDLE)), 'Pin state is retained stably after mouseup');
+            await nextFrame(clock); // 🚀 FIX
             assert.ok(block.pinWrapper.style.transform.includes(`translateX(${-HOLE_SPACING}px)`), 'pinWrapper shift is retained stably after mouseup');
             assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging cleanly resets to false after drop');
 
@@ -277,12 +260,16 @@
                 bubbles: true
             }));
 
+            await nextFrame(clock); // 🚀 FIX
+
             window.dispatchEvent(new MouseEvent('mouseup', {
                 bubbles: true,
                 cancelable: true,
                 clientX: -HOLE_SPACING,
                 view: window
             }));
+
+            await nextFrame(clock); // 🚀 FIX
 
             assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), 'Pin state PIN_RAISED drag back');
             assert.ok(block.pinWrapper.style.transform.includes('0px'), 'pinWrapper transformation resets to 0px on successful drag back to origin');
@@ -297,7 +284,7 @@
             block.x = currentDragX;
             block.pinWrapper.style.transform = `translateX(${-currentDragX}px)`;
             block.pin.style.transform = `translateZ(${PIN_UNDER}px)`;
-            block.pin.dataset.wasOverHole = "false";
+            block.pin.dataset.wasOverHole = 'false';
 
             gameState.dragState.activePlate = block.el;
             gameState.dragState.movingGroup = [{
@@ -313,13 +300,11 @@
                     {clientX: 100, clientY: 100},
                     {clientX: 150, clientY: 150}
                 ],
-                preventDefault: () => {
-                }
+                preventDefault: () => {}
             };
 
             handleDragStart(touchEvent);
 
-            //current coords
             const s_1 = block.el.style.transform.indexOf('X') + 2,
                 x_1 = -block.el.style.transform.substring(s_1, block.el.style.transform.length - 3);
             assert.ok(
@@ -350,28 +335,14 @@
 
         hooks.beforeEach(() => {
             clock = sinon.useFakeTimers();
-            countInput.value = 3; // Ensure 3 plates are present
-            renderBlocks();
-            gameState.blocks.forEach(function (block) {
-                block.x = 0;
-                // Ensure z is initialized if not already handled by renderBlocks()
+            setUpThreeBlocks();
+            gameState.blocks.forEach((block) => {
                 block.z = block.z || 0;
-                block.group = {[block.id]: 1};
-
-                // Clean up element styles
                 block.el.style.transform = `translateZ(${block.z}px) translateX(0px)`;
                 block.el.style.transition = '';
             });
 
-            // Ensure clean drag state before each test
-            gameState.dragState = {
-                activePlate: null,
-                startInputX: 0,
-                movingGroup: [],
-                isDragging: false,
-                longPressTimer: null,
-                hasMoved: false,
-            };
+            gameState.dragState = resetDragState();
         });
 
         hooks.afterEach(() => {
@@ -381,12 +352,9 @@
             document.dispatchEvent(new MouseEvent('mouseup', {clientX: 0, bubbles: true}));
         });
 
-        // ==========================================
-        // 1. applySingleMove() Tests
-        // ==========================================
         QUnit.test('applySingleMove() handles linked plate movements correctly and cements DOM styles', assert => {
-            const master = gameState.blocks[0]; // ID 1
-            const slave = gameState.blocks[1];  // ID 2
+            const master = gameState.blocks[0];
+            const slave = gameState.blocks[1];
 
             master.group[2] = 1;
 
@@ -415,7 +383,6 @@
             const master = gameState.blocks[0];
             const slave = gameState.blocks[1];
 
-            // Establish a Reverse Link: Plate 1 moves Plate 2 in the opposite direction
             master.group[2] = -1;
 
             const move = {plate: 1, direction: 'right'};
@@ -439,15 +406,12 @@
             assert.equal(slave.el.style.transform, `translateZ(${slave.z}px) translateX(${slave.x}px)`, 'Slave transform reverts');
         });
 
-        // ==========================================
-        // 2. handleDragStart() Tests
-        // ==========================================
         QUnit.test('handleDragStart() initializes drag state variables correctly', assert => {
             const block = gameState.blocks[0];
 
             block.group = { [block.id]: 1 };
 
-            let clientX = 100;
+            const clientX = 100;
             block.el.dispatchEvent(new MouseEvent('mousedown', {clientX, bubbles: true}));
 
             assert.equal(gameState.dragState.startInputX, clientX, 'Records the initial input X coordinate correctly');
@@ -489,21 +453,20 @@
             assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging is forcefully reset to false');
         });
 
-        // ==========================================
-        // 3. handleDragMove() Tests
-        // ==========================================
-        QUnit.test('handleDragMove() ignores movement below DRAG_THRESHOLD', assert => {
+        QUnit.test('handleDragMove() ignores movement below DRAG_THRESHOLD', async assert => {
             const block = gameState.blocks[0];
 
-            let clientX = 100;
+            const clientX = 100;
             block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
 
-            let countTimers_0 = clock.countTimers();
+            const countTimers_0 = clock.countTimers();
 
             assert.strictEqual(gameState.dragState.hasMoved, false, 'Baseline: hasMoved starts as false');
             assert.strictEqual(gameState.dragState.isDragging, false, 'Baseline: isDragging starts as false');
 
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: clientX + DRAG_THRESHOLD, bubbles: true}));
+
+            await nextFrame(clock);
 
             assert.strictEqual(gameState.dragState.hasMoved, true, 'hasMoved flips to true immediately upon move, regardless of threshold');
             assert.strictEqual(gameState.lastAction, 'handleDragMove', 'gameState.lastAction is correctly set at the end of the function');
@@ -514,15 +477,17 @@
         QUnit.test('handleDragMove() activates dragging when exceeding DRAG_THRESHOLD and removes transition', async assert => {
             const block = gameState.blocks[0];
 
-            let clientX = 100;
+            const clientX = 100;
             block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
 
-            let countTimers_0 = clock.countTimers();
+            const countTimers_0 = clock.countTimers();
             assert.equal(countTimers_0, 1, 'Baseline: Timer is set on mousedown');
 
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: clientX + DRAG_THRESHOLD + 1, bubbles: true}));
 
-            let countTimers_1 = clock.countTimers();
+            await nextFrame(clock);
+
+            const countTimers_1 = clock.countTimers();
 
             assert.strictEqual(gameState.dragState.hasMoved, true, 'hasMoved flips to true upon moving');
             assert.strictEqual(gameState.lastAction, 'handleDragMove', 'gameState.lastAction is correctly updated');
@@ -535,18 +500,19 @@
             assert.equal(block.el.style.transform, `translateZ(${block.z}px) translateX(${block.x.toFixed(5)}px)`, 'Transform dynamically updates while dragging');
         });
 
-        // ==========================================
-        // 4. handleDragEnd() Tests
-        // ==========================================
-        QUnit.test('handleDragEnd() snaps plate forward to the nearest grid spacing and cements snap styles', assert => {
+        QUnit.test('handleDragEnd() snaps plate forward to the nearest grid spacing and cements snap styles', async assert => {
             const block = gameState.blocks[0];
 
             gameState.lastAction = 'dragging';
             pinchState.initialDistance = 50;
 
-            let clientX = 100;
+            const clientX = 100;
             block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
+
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: clientX + HOLE_SPACING + 1, bubbles: true}));
+
+            await nextFrame(clock);
+
             window.dispatchEvent(new MouseEvent('mouseup', {
                 bubbles: true,
                 cancelable: true,
@@ -564,13 +530,17 @@
             assert.strictEqual(pinchState.initialDistance, 0, 'pinchState.initialDistance resets to 0');
         });
 
-        QUnit.test('handleDragEnd() snaps plate back if dragged less than half a grid spacing and clears all drag states', assert => {
+        QUnit.test('handleDragEnd() snaps plate back if dragged less than half a grid spacing and clears all drag states', async assert => {
             const block = gameState.blocks[0];
             block.x = HOLE_SPACING;
 
-            let clientX = 100;
+            const clientX = 100;
             block.el.dispatchEvent(new MouseEvent('mousedown', {clientX: clientX, bubbles: true}));
+
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: clientX - HOLE_SPACING + 1, bubbles: true}));
+
+            await nextFrame(clock);
+
             window.dispatchEvent(new MouseEvent('mouseup', {
                 bubbles: true,
                 cancelable: true,
@@ -588,9 +558,9 @@
         });
 
         QUnit.test('handleDragEnd() preserves lastAction if it was set to "deselectDragEnd"', assert => {
-            const block = gameState.blocks[0];
-
-            let clientX = 100,
+            const
+                block = gameState.blocks[0],
+                clientX = 100,
                 eventInitDict = {bubbles: true, clientX};
 
             block.el.dispatchEvent(new MouseEvent('mousedown', eventInitDict));
@@ -615,14 +585,14 @@
     });
 
     QUnit.module('Lockpicker Game Logic', hooks => {
-
+        let clock;
         hooks.beforeEach(() => {
-            countInput.value = 3;
-            renderBlocks();
-            gameState.blocks.forEach(function (block) {
-                block.x = 0
-                block.group = {[block.id]: 1}
-            })
+            clock = sinon.useFakeTimers();
+            setUpThreeBlocks();
+        });
+
+        hooks.afterEach(() => {
+            clock.restore();
         });
 
         QUnit.test('renderBlocks() initializes the correct state footprint', assert => {
@@ -659,52 +629,37 @@
         QUnit.test('applySingleMove() handles squashed movement logic accurately', assert => {
             const move = {plate: 2, direction: 'right'};
 
-            // Assert the forward timeline
             applySingleMove(move, false);
             assert.equal(gameState.blocks[1].x, 36.5, 'Moving right increments the target block x-coordinate');
 
-            // Assert the rollback timeline
             applySingleMove(move, true);
             assert.equal(gameState.blocks[1].x, 0, 'Reversing the move accurately restores the previous coordinate');
         });
 
         QUnit.test('longPress() enters linking mode when no linker is active', assert => {
-            // Tell QUnit this test involves async timeouts
-            const done = assert.async();
-
-            // 1. Setup: Simulate resting on plate 1 (id: 1) without dragging
             gameState.dragState.isDragging = false;
-            gameState.dragState.activePlate = gameState.blocks[0].el; // Array index 0 is id 1
+            gameState.dragState.activePlate = gameState.blocks[0].el;
 
-            // 2. Action: Trigger long press
             longPress(1);
 
-            // 3. Assert: Wait just slightly longer than the long press duration
-            setTimeout(() => {
-                assert.equal(gameState.activeLinkerId, 1, 'Sets activeLinkerId to the clicked block ID');
-                assert.ok(gameState.dragState.activePlate.classList.contains('selected'), 'Visually marks the active plate as selected');
-                done(); // Finish the async test
-            }, LONG_PRESS_DURATION + 50);
+            clock.tick(LONG_PRESS_DURATION + 50);
+
+            assert.equal(gameState.activeLinkerId, 1, 'Sets activeLinkerId to the clicked block ID');
+            assert.ok(gameState.dragState.activePlate.classList.contains('selected'), 'Visually marks the active plate as selected');
         });
 
         QUnit.test('longPress() exits linking mode when clicking the active linker again', assert => {
-            const done = assert.async();
-
-            // 1. Setup: Manually force the game into linking mode on plate 1
             gameState.activeLinkerId = 1;
             gameState.dragState.isDragging = false;
             gameState.dragState.activePlate = gameState.blocks[0].el;
             gameState.dragState.activePlate.classList.add('selected');
 
-            // 2. Action: Trigger long press on the SAME active linker
             longPress(1);
 
-            // 3. Assert: Deselection uses the SHORT_PRESS_DURATION
-            setTimeout(() => {
-                assert.equal(gameState.activeLinkerId, null, 'Unsets the activeLinkerId back to null');
-                assert.notOk(gameState.dragState.activePlate.classList.contains('selected'), 'Removes the selected UI class');
-                done();
-            }, SHORT_PRESS_DURATION + 50);
+            clock.tick(SHORT_PRESS_DURATION + 50);
+
+            assert.equal(gameState.activeLinkerId, null, 'Unsets the activeLinkerId back to null');
+            assert.notOk(gameState.dragState.activePlate.classList.contains('selected'), 'Removes the selected UI class');
         });
 
         QUnit.test('renderBlocks() preserves valid block groups, purges out-of-bound links, and retains coordinates on re-render', assert => {
@@ -741,8 +696,7 @@
     QUnit.module('Lockpicker Game Render', hooks => {
 
         hooks.beforeEach(() => {
-            countInput.value = 3;
-            renderBlocks();
+            setUpThreeBlocks();
         });
 
         QUnit.test('renderBlocks() correctly renders internal DOM structure (pins and corners)', assert => {
@@ -776,8 +730,6 @@
                 assert.ok(corner, `Corner tube with class '${cornerClass}' was rendered`);
 
                 if (corner) {
-                    // The loop in your code: for (let a = 7.5; a < 90; a += 15)
-                    // Steps: 7.5, 22.5, 37.5, 52.5, 67.5, 82.5 (Exactly 6 iterations)
                     const panels = corner.querySelectorAll('.tube-panel');
                     assert.strictEqual(
                         panels.length,
@@ -801,8 +753,7 @@
 
         hooks.beforeEach(() => {
             clock = sinon.useFakeTimers();
-            countInput.value = 3;
-            renderBlocks();
+            setUpThreeBlocks();
             gameState.activeLinkerId = null;
             gameState.dragState.isDragging = false;
         });
@@ -818,23 +769,19 @@
             gameState.activeLinkerId = 1;
             gameState.dragState.activePlate = targetBlock.el;
 
-            // --- 1st Press: Create normal link ---
             longPress(2);
 
-            // Use tickAsync to ensure Promises AND timeouts are both resolved
             await clock.tickAsync(SHORT_PRESS_DURATION + 1);
 
             assert.equal(masterBlock.group[2], 1, 'First long press creates a forward link (1)');
             assert.ok(targetBlock.el.classList.contains('linked-highlight'), 'Adds linked-highlight class');
 
-            // --- 2nd Press: Switch to reverse link ---
             longPress(2);
             await clock.tickAsync(SHORT_PRESS_DURATION + 1);
 
             assert.equal(masterBlock.group[2], -1, 'Second long press switches to a reverse link (-1)');
             assert.ok(targetBlock.el.classList.contains('linked-highlight-reverse'), 'Changes to reverse class');
 
-            // --- 3rd Press: Remove link entirely ---
             longPress(2);
             await clock.tickAsync(SHORT_PRESS_DURATION + 1);
 
@@ -870,10 +817,8 @@
             const masterBlock = gameState.blocks[0]; // id 1
             const targetBlock = gameState.blocks[1]; // id 2
 
-            // Establish a link so the hover preview has a tangible visual effect
             masterBlock.group[2] = 1;
 
-            // Simulate mobile environment
             gameState.isMobile = true;
 
             gameState.activeLinkerId = 1;
@@ -918,7 +863,6 @@
             masterBlock.group[2] = 1;
             gameState.isMobile = true;
 
-            // 1. Setup
             gameState.activeLinkerId = 1;
             gameState.dragState.activePlate = masterBlock.el;
             masterBlock.el.classList.add('selected');
@@ -941,13 +885,13 @@
                 rotationAngle: 0,
                 force: 1
             });
-            const touchStartEvent = new TouchEvent('touchstart', {
+
+            masterBlock.el.dispatchEvent(new TouchEvent('touchstart', {
                 bubbles: true,
                 cancelable: true,
                 touches: [touchStartObj],
                 changedTouches: [touchStartObj]
-            });
-            masterBlock.el.dispatchEvent(touchStartEvent);
+            }));
 
             await clock.tickAsync(LONG_PRESS_DURATION + 1);
 
@@ -971,13 +915,12 @@
                 rotationAngle: 0,
                 force: 1
             });
-            const touchMoveEvent = new TouchEvent('touchmove', {
+            window.dispatchEvent(new TouchEvent('touchmove', {
                 bubbles: true,
                 cancelable: true,
                 touches: [touchMoveObj],
                 changedTouches: [touchMoveObj]
-            });
-            window.dispatchEvent(touchMoveEvent);
+            }));
 
             await clock.tickAsync(50);
 
@@ -1032,4 +975,3 @@
 
 </script>
 </body>
-

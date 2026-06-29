@@ -68,7 +68,9 @@ if (gameState.isMobile) squashMovesCheck.checked = false;
 let currentSolution = null,
     currentStepIndex = 0,
     isPlaying = false,
-    moveMap = [];
+    moveMap = [],
+    dragRafId = null,
+    currentClientX = 0;
 
 function setStatus(text, type = 'info') {
     statusMsg.textContent = text;
@@ -739,12 +741,42 @@ function applySingleMove(move, reverse = false) {
     });
 }
 
-function handleDragStart(e) {
+function updateDragDOM() {
+    dragRafId = null;
     const
-        touches = e.touches,
+        dragState = gameState.dragState,
+        movingGroup = dragState.movingGroup,
+        groupLen = movingGroup.length;
+
+    if (!dragState.activePlate || groupLen === 0) return;
+
+    const rawDistX = currentClientX - dragState.startInputX;
+
+    if (!dragState.isDragging && Math.abs(rawDistX) > DRAG_THRESHOLD) {
+        dragState.isDragging = true;
+        clearTimeout(dragState.longPressTimer);
+    }
+
+    if (!dragState.isDragging) return;
+
+    const
+        scale = pinchState.lastScale || parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')),
+        rawDeltaX = rawDistX / scale,
+        deltaX = Math.max(dragState.minDeltaX, Math.min(rawDeltaX, dragState.maxDeltaX));
+
+    for (let i = 0; i < groupLen; i++) {
+        const item = movingGroup[i];
+        item.currentX = item.initialX + (deltaX * item.dir);
+        updateBlockState(item.block, { x: item.currentX });
+    }
+}
+
+function handleDragStart(e) {
+    const touches = e.touches,
         dragState = gameState.dragState;
 
     if (touches) gameState.lastTouchTime = Date.now();
+
     if (touches && touches.length >= 2) {
         document.body.classList.add('is-zooming');
 
@@ -757,10 +789,10 @@ function handleDragStart(e) {
         if (dragState.activePlate) {
             const movingGroup = dragState.movingGroup;
             for (let i = 0, len = movingGroup.length; i < len; i++) {
-                updateBlockState(movingGroup[i].block, {x: movingGroup[i].initialX});
+                updateBlockState(movingGroup[i].block, { x: movingGroup[i].initialX });
             }
             dragState.activePlate = null;
-            dragState.movingGroup = [];
+            dragState.movingGroup.length = 0;
             dragState.isDragging = false;
             clearHoverPreview(true);
         }
@@ -784,7 +816,7 @@ function handleDragStart(e) {
     const clickedId = +clickedPlate.dataset.id;
     const blocks = gameState.blocks;
 
-    const clickedBlock = blocks.find(b => b.id === clickedId);
+    const clickedBlock = blocks[clickedId - 1];
     if (!clickedBlock) return;
 
     let minD = -Infinity, maxD = Infinity;
@@ -793,18 +825,19 @@ function handleDragStart(e) {
     for (const idStr in group) {
         const
             id = +idStr,
-            b = blocks.find(x => x.id === id),
+            b = blocks[id - 1],
             dirVal = group[idStr];
 
         if (b) {
-            const initial = b.x;
-            dragState.movingGroup.push({block: b, dir: dirVal, initialX: initial});
+
+            dragState.movingGroup.push({ block: b, dir: dirVal, initialX: b.x, currentX: b.x });
             b.el.style.transition = 'none';
             b.pinWrapper.style.transition = 'none';
+
             const
                 dir = dirVal === 1,
-                minBound = dir ? -MAX_DELTA_LIMIT - initial : initial - MAX_DELTA_LIMIT,
-                maxBound = dir ? MAX_DELTA_LIMIT - initial : initial + MAX_DELTA_LIMIT;
+                minBound = dir ? -MAX_DELTA_LIMIT - b.x : b.x - MAX_DELTA_LIMIT,
+                maxBound = dir ? MAX_DELTA_LIMIT - b.x : b.x + MAX_DELTA_LIMIT;
 
             if (minBound > minD) minD = minBound;
             if (maxBound < maxD) maxD = maxBound;
@@ -818,6 +851,7 @@ function handleDragStart(e) {
 }
 
 function handleDragMove(e) {
+
     if (e.touches && 2 === e.touches.length) {
         e.preventDefault();
         const t1 = e.touches[0], t2 = e.touches[1];
@@ -840,43 +874,21 @@ function handleDragMove(e) {
         return;
     }
 
-    const
-        dragState = gameState.dragState,
-        movingGroup = dragState.movingGroup,
-        groupLen = movingGroup.length;
-
-    if (!dragState.activePlate || groupLen === 0 || gameState.activeLinkerId) return;
+    const dragState = gameState.dragState;
+    if (!dragState.activePlate || 0 === dragState.movingGroup.length || gameState.activeLinkerId) return;
 
     dragState.hasMoved = true;
+    currentClientX = getClientX(e);
 
-    const
-        clientX = getClientX(e),
-        rawDistX = clientX - dragState.startInputX;
-
-    if (!dragState.isDragging && Math.abs(rawDistX) > DRAG_THRESHOLD) {
-        dragState.isDragging = true;
-        clearTimeout(dragState.longPressTimer);
+    if (!dragRafId) {
+        dragRafId = requestAnimationFrame(updateDragDOM);
     }
-
-    const
-        scale = pinchState.lastScale || parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--block-scale')),
-        rawDeltaX = rawDistX / scale,
-        deltaX = Math.max(dragState.minDeltaX, Math.min(rawDeltaX, dragState.maxDeltaX));
-
-    for (let i = 0; i < groupLen; i++) {
-        const item = movingGroup[i];
-        item.currentX = item.initialX + (deltaX * item.dir);
-        updateBlockState(item.block, {x: item.currentX});
-    }
-
     gameState.lastAction = 'handleDragMove';
 }
 
 function handleDragEnd(e) {
-
-    const
-        {dragState} = gameState,
-        {activePlate, movingGroup, isDragging} = dragState;
+    const { dragState } = gameState;
+    const { activePlate, movingGroup, isDragging } = dragState;
 
     if (e?.changedTouches) gameState.lastTouchTime = Date.now();
     if ((e?.touches?.length ?? 0) < 2) document.body.classList.remove('is-zooming');
@@ -884,22 +896,35 @@ function handleDragEnd(e) {
     pinchState.initialDistance = 0;
     clearTimeout(dragState.longPressTimer);
 
+    if (dragRafId) {
+        cancelAnimationFrame(dragRafId);
+        dragRafId = null;
+    }
+
     if (activePlate) clearHoverPreview();
 
     if (activePlate && movingGroup.length > 0 && isDragging) {
+        const clickedId = +activePlate.dataset.id;
 
-        const
-            clickedId = +activePlate.dataset.id,
-            primary = movingGroup.find(item => item.block.id === clickedId) || movingGroup[0],
-            currentX = primary.currentX ?? primary.initialX,
-            holeIndex = Math.round(currentX / HOLE_SPACING);
+        let primary = movingGroup[0];
+        for (let i = 0; i < movingGroup.length; i++) {
+            if (movingGroup[i].block.id === clickedId) {
+                primary = movingGroup[i];
+                break;
+            }
+        }
+
+        const currentX = primary.currentX ?? primary.initialX;
+        const holeIndex = Math.round(currentX / HOLE_SPACING);
 
         let snapDelta = (holeIndex * HOLE_SPACING) - currentX,
             maxAllowedShiftLeft = -Infinity,
             maxAllowedShiftRight = Infinity;
 
-        for (const item of movingGroup) {
-            const cx = item.currentX ?? item.initialX,
+        for (let i = 0; i < movingGroup.length; i++) {
+            const
+                item = movingGroup[i],
+                cx = item.currentX ?? item.initialX,
                 cxDir = cx * item.dir;
             maxAllowedShiftLeft = Math.max(maxAllowedShiftLeft, -MAX_DELTA_LIMIT - cxDir);
             maxAllowedShiftRight = Math.min(maxAllowedShiftRight, MAX_DELTA_LIMIT - cxDir);
@@ -907,14 +932,15 @@ function handleDragEnd(e) {
 
         snapDelta = Math.max(maxAllowedShiftLeft, Math.min(snapDelta, maxAllowedShiftRight));
 
-        for (const item of movingGroup) {
+        for (let i = 0; i < movingGroup.length; i++) {
+            const item = movingGroup[i];
             const cx = item.currentX ?? item.initialX;
             updateBlockState(item.block, {x: cx + (snapDelta * item.dir), transition: 'transform 0.2s ease-out'});
         }
     }
 
     dragState.activePlate = null;
-    dragState.movingGroup = [];
+    dragState.movingGroup.length = 0;
     dragState.isDragging = false;
 
     if ('deselectDragEnd' !== gameState.lastAction) {
