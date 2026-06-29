@@ -90,7 +90,7 @@ function clearSolutionUI() {
     restartSeqBtn.style.display = 'none';
     stepControlsRow.classList.remove('show-stretch');
     squashLabel.classList.remove('show-stretch');
-    setStatus("", "info");
+    setStatus('', 'info');
     solveBtn.disabled = false;
     gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
     document.querySelectorAll('.hole.glow-white').forEach(h => h.classList.remove('glow-white'));
@@ -115,13 +115,13 @@ function compactSetup() {
 }
 
 function solveInWorker() {
-    if (undefined === window.Worker) return Promise.reject(new Error("Web Workers are not supported."));
+    if (undefined === window.Worker) return Promise.reject(new Error('Web Workers are not supported.'));
     const setup = compactSetup();
     const payload = {
         n: setup.n,
         start: setup.start,
         effects: setup.effects,
-        mode: "fewer-switches-fast",
+        mode: 'fewer-switches-fast',
         timeoutMs: SOLVE_TIMEOUT_MS
     };
     return new Promise((resolve, reject) => {
@@ -274,21 +274,21 @@ solveBtn.addEventListener('click', async () => {
         return;
     }
     clearSolutionUI();
-    solveBtn.textContent = "Solving...";
+    solveBtn.textContent = 'Solving...';
     solveBtn.disabled = true;
-    setStatus("Calculating solution...", "info");
+    setStatus('Calculating solution...', 'info');
     try {
         const result = await solveInWorker();
         if (result.timeout) {
-            setStatus("Solver timed out! Try adjusting parameters.", "error");
+            setStatus('Solver timed out! Try adjusting parameters.', 'error');
         } else if (!result || !result.moves) {
-            setStatus("No solution found from this state.", "error");
+            setStatus('No solution found from this state.', 'error');
         } else if (result.moves.length === 0) {
-            setStatus("", "info");
+            setStatus('', 'info');
         } else {
             currentSolution = result.moves;
             currentStepIndex = 0;
-            setStatus(`Solution found: ${result.moves.length} moves!`, "success");
+            setStatus(`Solution found: ${result.moves.length} moves!`, 'success');
             playBtn.style.display = 'block';
             restartSeqBtn.style.display = 'block';
             stepControlsRow.classList.add('show-stretch');
@@ -296,9 +296,9 @@ solveBtn.addEventListener('click', async () => {
             renderSolutionList();
         }
     } catch (error) {
-        setStatus("Solver crashed: " + error.message, "error");
+        setStatus('Solver crashed: ' + error.message, 'error');
     } finally {
-        solveBtn.textContent = "Solve Lock";
+        solveBtn.textContent = 'Solve Lock';
         if (!isPlaying) solveBtn.disabled = false;
     }
 });
@@ -307,12 +307,12 @@ playBtn.addEventListener('click', async () => {
     if (isPlaying) {
         isPlaying = false;
         playBtn.textContent = '▶ Play';
-        setStatus("Paused sequence.", "info");
+        setStatus('Paused sequence.', 'info');
         return;
     }
     isPlaying = true;
     playBtn.textContent = '⏸ Pause';
-    setStatus("Playing sequence...", "info");
+    setStatus('Playing sequence...', 'info');
     updatePlaybackUI();
     while (currentStepIndex < currentSolution.length && isPlaying) {
         applySingleMove(currentSolution[currentStepIndex], false);
@@ -323,20 +323,20 @@ playBtn.addEventListener('click', async () => {
     isPlaying = false;
     if (currentStepIndex >= currentSolution.length) {
         playBtn.textContent = '▶ Play';
-        setStatus("Sequence complete!", "success");
+        setStatus('Sequence complete!', 'success');
     }
     updatePlaybackUI();
 });
 
 restartSeqBtn.addEventListener('click', () => {
     if (null === currentSolution || isPlaying) return;
-    setStatus("Restarting sequence...", "info");
+    setStatus('Restarting sequence...', 'info');
     while (currentStepIndex > 0) {
         applySingleMove(currentSolution[currentStepIndex - 1], true);
         currentStepIndex--;
     }
     playBtn.textContent = '▶ Play';
-    setStatus(`Solution found: ${currentSolution.length} moves!`, "success");
+    setStatus(`Solution found: ${currentSolution.length} moves!`, 'success');
     updatePlaybackUI();
 });
 
@@ -348,7 +348,7 @@ function vibrate(duration) {
     if (!navigator.getGamepads) return;
     const gamepads = navigator.getGamepads();
     for (let gamepad of gamepads) if (gamepad && gamepad.vibrationActuator && typeof gamepad.vibrationActuator.playEffect === 'function') {
-        gamepad.vibrationActuator.playEffect("dual-rumble", {
+        gamepad.vibrationActuator.playEffect('dual-rumble', {
             startDelay: 0,
             //for gamepads its increesad
             duration: duration * 4,
@@ -412,6 +412,7 @@ function updatePinState(block, options = {}) {
         return;
     }
 
+    //todo first touch not vibrate
     if ('false' === pin.dataset.wasOverHole) {
         pin.dataset.wasOverHole = 'true';
         vibrate(15);
@@ -1249,8 +1250,8 @@ async function runTutorialStep(version) {
         clean();
 
         tutorialText.textContent = gameState.isMobile
-            ? "Use a two-finger pinch gesture on the screen to zoom in or out."
-            : "Use the slider to adjust zooming.";
+            ? 'Use a two-finger pinch gesture on the screen to zoom in or out.'
+            : 'Use the slider to adjust zooming.';
 
         const baseScale = sizeInput ? parseFloat(sizeInput.value) : 1;
 
@@ -1281,7 +1282,7 @@ async function runTutorialStep(version) {
 
     } else if (2 === tutorialStep) {
         clean();
-        tutorialText.textContent = "You can drag selected plates left or right.";
+        tutorialText.textContent = 'You can drag selected plates left or right.';
         let plateIndex = 0;
         while (version === currentTutorialVersion) {
             gameState.blocks.forEach(b => b.el.querySelector('.front-face').style.borderColor = '');
@@ -1293,7 +1294,7 @@ async function runTutorialStep(version) {
             await sleep(600);
         }
     } else if (3 === tutorialStep) {
-        tutorialText.textContent = "Adjust plates like in a game: plates count and plates position.";
+        tutorialText.textContent = 'Adjust plates like in a game: plates count and plates position.';
         while (version === currentTutorialVersion) {
             if (6 !== +countInput.value) {
                 countInput.value = 6;
@@ -1337,7 +1338,7 @@ async function runTutorialStep(version) {
         }
     } else if (4 === tutorialStep) {
         clean();
-        tutorialText.textContent = "Long-press to group plates. Blue moves with it, Red opposite. Tap again to deselect.";
+        tutorialText.textContent = 'Long-press to group plates. Blue moves with it, Red opposite. Tap again to deselect.';
         while (version === currentTutorialVersion) {
             clean();
             await sleep(1200);
@@ -1381,7 +1382,9 @@ async function runTutorialStep(version) {
         }
     } else if (5 === tutorialStep) {
         clean();
-        tutorialText.textContent = gameState.isMobile ? "Touch the number row to see what groups are selected for plate" : "Hover with mouse to understand what are selected for plate";
+        tutorialText.textContent = gameState.isMobile
+            ? 'Touch the number row to see what groups are selected for plate'
+            : 'Hover with mouse to understand what are selected for plate';
         while (version === currentTutorialVersion) {
             gameState.blocks.forEach(b => b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched'));
             await sleep(500);
@@ -1418,7 +1421,9 @@ async function runTutorialStep(version) {
         }
     } else if (6 === tutorialStep) {
         clean();
-        tutorialText.textContent = gameState.isMobile ? "You can walk step-by-step by pressing step controls. If you hold it, it will move plates state-by-state." : "If squashed is checked, plates will go from state-to-state. Without squashed, you can walk single steps.";
+        tutorialText.textContent = gameState.isMobile
+            ? 'You can walk step-by-step by pressing step controls. If you hold it, it will move plates state-by-state.'
+            : 'If squashed is checked, plates will go from state-to-state. Without squashed, you can walk single steps.';
         resetBtn.click();
         await sleep(200);
         if (version !== currentTutorialVersion) return;
@@ -1499,7 +1504,7 @@ async function runTutorialStep(version) {
         }
     } else if (7 === tutorialStep) {
         clean();
-        tutorialText.textContent = "You can play the whole sequence automatically. Press the play button.";
+        tutorialText.textContent = 'You can play the whole sequence automatically. Press the play button.';
         while (version === currentTutorialVersion) {
             resetBtn.click();
             await sleep(400);
