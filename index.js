@@ -104,9 +104,6 @@ function setInitialState() {
     pinchState.lastScale = pinchState.initialScale
     sizeInput.value = pinchState.initialScale;
     document.documentElement.style.setProperty('--block-scale', pinchState.initialScale);
-    if (navigator.vibrate) {
-        navigator.vibrate(1);
-    }
     if (navigator.getGamepads) {
         let gamepads  = navigator.getGamepads();
     }
@@ -1231,7 +1228,12 @@ document.addEventListener('touchstart', handleDragStart, {passive: false});
 document.addEventListener('touchmove', handleDragMove, {passive: false});
 window.addEventListener('touchend', handleDragEnd);
 document.addEventListener('touchcancel', handleDragEnd);
-//window.addEventListener('touchstart', () => gameState.isInteracted = true, { once: true });
+window.addEventListener('touchstart', () => {
+    gameState.isInteracted = true
+    if (navigator.vibrate) {
+        navigator.vibrate(1);
+    }
+}, { once: true });
 
 const tutorialOverlay = document.getElementById('tutorialOverlay'),
     tutorialBubble = document.getElementById('tutorialBubble'),
