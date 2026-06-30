@@ -54,7 +54,6 @@
         clearSolutionUI();
     };
 
-    // 🚀 FIX: Safely handles fake ticking so RequestAnimationFrame resolves instantly
     const nextFrame = (clock) => new Promise(resolve => {
         requestAnimationFrame(resolve);
         if (clock) clock.tick(16);
@@ -115,12 +114,12 @@
         let block,
             vibrateStub,
             rumbleStub,
-            clock; // 🚀 FIX: Added clock to this module for timeout testing
+            clock;
 
         const originalElementFromPoint = document.elementFromPoint;
 
         hooks.beforeEach(() => {
-            clock = sinon.useFakeTimers(); // 🚀 FIX: Init Fake Timers
+            clock = sinon.useFakeTimers();
             document.elementFromPoint = originalElementFromPoint;
 
             gameState.dragState = resetDragState();
@@ -143,7 +142,7 @@
         });
 
         hooks.afterEach(() => {
-            clock.restore(); // 🚀 FIX: Clean up timers
+            clock.restore();
             sinon.restore();
         });
 
@@ -189,7 +188,6 @@
             assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin falls to the PIN_UNDER state');
         });
 
-        // 🚀 FIX: Removed flaky native setTimeout, now perfectly synchronous using Sinon
         QUnit.test('Pin state drops to PIN_UNDER instantly and rises to PIN_MIDDLE/RAISED after timeout in applySingleMove', assert => {
             const block = gameState.blocks[0];
 
@@ -216,7 +214,6 @@
             const halfX = clientX + (HOLE_SPACING / 2) * pinchState.initialScale;
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: halfX, bubbles: true}));
 
-            // 🚀 FIX: Passed clock to nextFrame
             await nextFrame(clock);
 
             assert.strictEqual(block.pin.dataset.wasOverHole, 'false', 'Pin evaluates as outside hole during drag halfway');
@@ -229,7 +226,6 @@
             const fullX = clientX + (HOLE_SPACING) * pinchState.initialScale;
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: fullX, bubbles: true}));
 
-            // 🚀 FIX: Passed clock to nextFrame
             await nextFrame(clock);
 
             assert.strictEqual(block.pin.dataset.wasOverHole, 'true', 'Pin evaluates as over hole when drag reaches next hole');
@@ -247,7 +243,7 @@
                 view: window
             }));
 
-            await nextFrame(clock); // 🚀 FIX
+            await nextFrame(clock);
             assert.ok(block.pinWrapper.style.transform.includes(`translateX(${-HOLE_SPACING}px)`), 'pinWrapper shift is retained stably after mouseup');
             assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging cleanly resets to false after drop');
 
@@ -261,7 +257,7 @@
                 bubbles: true
             }));
 
-            await nextFrame(clock); // 🚀 FIX
+            await nextFrame(clock);
 
             window.dispatchEvent(new MouseEvent('mouseup', {
                 bubbles: true,
@@ -270,7 +266,7 @@
                 view: window
             }));
 
-            await nextFrame(clock); // 🚀 FIX
+            await nextFrame(clock);
 
             assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), 'Pin state PIN_RAISED drag back');
             assert.ok(block.pinWrapper.style.transform.includes('0px'), 'pinWrapper transformation resets to 0px on successful drag back to origin');
@@ -904,23 +900,21 @@
             currentSolution = [{ plate: gameState.blocks[0].id, direction: 'right' }];
             renderSolutionList();
 
-            // Force a glow on an unrelated hole to test the timeout cleanup
             const staleHole = gameState.blocks[1].el.querySelector('.hole');
-            if (staleHole) {
-                staleHole.classList.add('glow-white');
+            staleHole.classList.add('glow-white');
+            gameState.glowingHoles.push(staleHole)
 
-                currentStepIndex = 0;
-                updatePlaybackUI();
+            currentStepIndex = 0;
+            updatePlaybackUI();
 
-                assert.ok(staleHole.classList.contains('glow-white'), 'Stale hole retains glow immediately after update');
+            assert.ok(staleHole.classList.contains('glow-white'), 'Stale hole retains glow immediately after update');
+            assert.ok(gameState.glowingHoles.includes(staleHole), 'Stale hole remains in the cache array immediately after update');
 
-                clock.tick(250); // Fast forward 250ms
+            clock.tick(250);
 
-                assert.notOk(staleHole.classList.contains('glow-white'), 'Stale hole loses glow-white class precisely after 250ms timeout');
-                assert.strictEqual(staleHole.glowTimeoutId, null, 'Timeout ID on the element is cleaned up');
-            } else {
-                assert.ok(true, 'Skipped: No holes found to test (ensure real UI has .hole elements)');
-            }
+            assert.notOk(staleHole.classList.contains('glow-white'), 'Stale hole loses glow-white class precisely after 250ms timeout');
+            assert.strictEqual(staleHole.glowTimeoutId, null, 'Timeout ID on the element is cleaned up');
+            assert.notOk(gameState.glowingHoles.includes(staleHole), 'Stale hole is removed from the gameState.glowingHoles cache');
         });
     });
 

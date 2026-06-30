@@ -88,7 +88,9 @@ const
         isMobile: 768 >= window.innerWidth,
         lastTouchTime: 0,
         lastAction: null,
-        isHovering: false
+        isHovering: false,
+        hoveredElements: [],
+        glowingHoles: []
     },
     pinchState = {initialDistance: 0, initialScale: 0, lastScale: 0};
 
@@ -134,8 +136,16 @@ function clearSolutionUI() {
     squashLabel.classList.remove('show-stretch');
     setStatus('', 'info');
     solveBtn.disabled = false;
+
     gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
-    document.querySelectorAll('.hole.glow-white').forEach(h => h.classList.remove('glow-white'));
+
+    gameState.glowingHoles.forEach(h => {
+        clearTimeout(h.glowTimeoutId);
+        h.glowTimeoutId = null;
+        h.classList.remove('glow-white');
+    });
+    gameState.glowingHoles = [];
+
     solutionList.innerHTML = '';
     if (solutionList.classList.contains('is-expanded')) toggleExpandList(false);
 }
@@ -205,13 +215,16 @@ function jumpToStep(targetIndex) {
 
 function updatePlaybackUI() {
     if (null === currentSolution) return;
+
     prevBtn.disabled = (0 === currentStepIndex) || isPlaying;
     nextBtn.disabled = (currentStepIndex === currentSolution.length) || isPlaying;
     playBtn.disabled = (currentStepIndex === currentSolution.length);
     restartSeqBtn.disabled = isPlaying;
     solveBtn.disabled = isPlaying;
+
     Array.from(solutionList.children).forEach(el => el.classList.remove('active-step'));
     gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
+
     if (currentStepIndex < currentSolution.length) {
         let activeDomIndex = moveMap[currentStepIndex];
         if (undefined !== activeDomIndex && solutionList.children[activeDomIndex]) {
@@ -219,51 +232,78 @@ function updatePlaybackUI() {
             activeEl.classList.add('active-step');
             if (0 === currentStepIndex) {
                 solutionList.scrollTop = 0;
-            } else activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            } else {
+                activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            }
         }
-        const
-            nextMove = currentSolution[currentStepIndex],
-            activeBlock = gameState.blocks[nextMove.plate - 1];
+
+        const nextMove = currentSolution[currentStepIndex];
+        const activeBlock = gameState.blocks[nextMove.plate - 1];
         let elementsToGlow = [];
+
         if (activeBlock) {
             if ('right' === nextMove.direction) {
                 activeBlock.el.classList.add('linked-highlight');
-            } else activeBlock.el.classList.add('linked-highlight-reverse');
+            } else {
+                activeBlock.el.classList.add('linked-highlight-reverse');
+            }
+
             let moveCount = 0;
             if (nextMove.count) {
                 moveCount = nextMove.count;
-            } else for (let i = currentStepIndex; i < currentSolution.length; i++) if (currentSolution[i].plate === nextMove.plate && currentSolution[i].direction === nextMove.direction) {
-                moveCount++;
-            } else break;
-            let currentHoleOffset = Math.round(activeBlock.x / HOLE_SPACING);
-            let currentPinHole = 3 - currentHoleOffset;
-            for (let step = moveCount; step <= moveCount; step++) {
-                let targetHoleIndex = nextMove.direction === 'right' ? currentPinHole - step : currentPinHole + step;
-                if (targetHoleIndex >= 0 && targetHoleIndex <= 6) {
-                    let holes = activeBlock.el.querySelectorAll('.hole');
-                    if (holes[targetHoleIndex]) elementsToGlow.push(holes[targetHoleIndex]);
+            } else {
+                for (let i = currentStepIndex; i < currentSolution.length; i++) {
+                    if (currentSolution[i].plate === nextMove.plate && currentSolution[i].direction === nextMove.direction) {
+                        moveCount++;
+                    } else break;
                 }
             }
+
+            let currentHoleOffset = Math.round(activeBlock.x / HOLE_SPACING);
+            let currentPinHole = 3 - currentHoleOffset;
+            let step = moveCount;
+            let targetHoleIndex = nextMove.direction === 'right' ? currentPinHole - step : currentPinHole + step;
+
+            if (targetHoleIndex >= 0 && targetHoleIndex <= 6) {
+                let holes = activeBlock.el.querySelectorAll('.hole');
+                if (holes[targetHoleIndex]) elementsToGlow.push(holes[targetHoleIndex]);
+            }
         }
-        document.querySelectorAll('.hole.glow-white').forEach(h => {
-            if (!elementsToGlow.includes(h) && !h.glowTimeoutId) h.glowTimeoutId = setTimeout(() => {
-                h.classList.remove('glow-white');
-                h.glowTimeoutId = null;
-            }, 250);
+
+        gameState.glowingHoles.forEach(h => {
+            if (!elementsToGlow.includes(h) && !h.glowTimeoutId) {
+                h.glowTimeoutId = setTimeout(() => {
+                    h.classList.remove('glow-white');
+                    h.glowTimeoutId = null;
+                    // Safely remove from cache once timeout finishes
+                    gameState.glowingHoles = gameState.glowingHoles.filter(glowing => glowing !== h);
+                }, 250);
+            }
         });
+
         elementsToGlow.forEach(h => {
             if (h.glowTimeoutId) {
                 clearTimeout(h.glowTimeoutId);
                 h.glowTimeoutId = null;
             }
-            if (!h.classList.contains('glow-white')) h.classList.add('glow-white');
+            if (!h.classList.contains('glow-white')) {
+                h.classList.add('glow-white');
+                // Ensure it's pushed to our cache array
+                if (!gameState.glowingHoles.includes(h)) {
+                    gameState.glowingHoles.push(h);
+                }
+            }
         });
+
     } else if (0 < currentSolution.length) {
-        document.querySelectorAll('.hole.glow-white').forEach(h => {
-            if (!h.glowTimeoutId) h.glowTimeoutId = setTimeout(() => {
-                h.classList.remove('glow-white');
-                h.glowTimeoutId = null;
-            }, 250);
+        gameState.glowingHoles.forEach(h => {
+            if (!h.glowTimeoutId) {
+                h.glowTimeoutId = setTimeout(() => {
+                    h.classList.remove('glow-white');
+                    h.glowTimeoutId = null;
+                    gameState.glowingHoles = gameState.glowingHoles.filter(glowing => glowing !== h);
+                }, 250);
+            }
         });
         let lastDomIndex = moveMap[currentSolution.length - 1];
         if (undefined !== lastDomIndex && solutionList.children[lastDomIndex]) {
@@ -456,7 +496,6 @@ function updatePinState(block, options = {}) {
         return;
     }
 
-    //todo first touch not vibrate
     if ('false' === pin.dataset.wasOverHole) {
         pin.dataset.wasOverHole = 'true';
         vibrate(15);
@@ -490,29 +529,41 @@ function updateHoverPreview(plate) {
     if (gameState.activeLinkerId || currentSolution) return;
     clearHoverPreview(true);
     if (!plate) return;
+
     const hoveredBlock = gameState.blocks.find(b => b.el === plate);
     if (!hoveredBlock) return;
+
     plate.classList.add('is-touched');
+    gameState.hoveredElements.push(plate);
     gameState.isHovering = true;
+
     const groupIds = Object.keys(hoveredBlock.group);
     if (groupIds.length <= 1) return;
+
     groupIds.forEach(idStr => {
         const id = +idStr;
         if (id === hoveredBlock.id) return;
-        const member = gameState.blocks[id - 1];
+        const member = gameState.blocks.find(b => b.id === id);
         if (!member) return;
+
         member.el.classList.add(1 === hoveredBlock.group[id] ? 'linked-highlight' : 'linked-highlight-reverse');
+        gameState.hoveredElements.push(member.el);
     });
 }
 
 function clearHoverPreview(isEndHovering) {
     if (gameState.activeLinkerId || currentSolution) return;
     if (gameState.lastAction === 'deselect') {
-        gameState.lastAction === 'deselectDragEnd';
+        gameState.lastAction = 'deselectDragEnd';
         return;
     }
     if (!gameState.isHovering && !isEndHovering) return;
-    document.querySelectorAll('.linked-highlight, .linked-highlight-reverse, .is-touched').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
+
+    if (gameState.hoveredElements.length > 0) {
+        gameState.hoveredElements.forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
+        gameState.hoveredElements = [];
+    }
+
     gameState.isHovering = false;
 }
 
@@ -530,6 +581,7 @@ function createPlate(id, prevX, zPos) {
         pin = plate.querySelector('.pin');
 
     pinWrapper.style.transform = `translateX(${-prevX}px)`;
+    pin.dataset.wasOverHole = 'true';
 
     plate.addEventListener('mouseenter', () => {
         if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
