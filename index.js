@@ -581,7 +581,8 @@ function createPlate(id, prevX, zPos) {
         pin = plate.querySelector('.pin');
 
     pinWrapper.style.transform = `translateX(${-prevX}px)`;
-    pin.dataset.wasOverHole = 'true';
+    //need like this cuz of first touch vibration
+    pin.dataset.wasOverHole = 'false';
 
     plate.addEventListener('mouseenter', () => {
         if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
