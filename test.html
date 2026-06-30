@@ -51,9 +51,9 @@
             block.x = 0;
             block.group = { [block.id]: 1 };
         });
+        clearSolutionUI();
     };
 
-    // 🚀 FIX: Safely handles fake ticking so RequestAnimationFrame resolves instantly
     const nextFrame = (clock) => new Promise(resolve => {
         requestAnimationFrame(resolve);
         if (clock) clock.tick(16);
@@ -114,12 +114,12 @@
         let block,
             vibrateStub,
             rumbleStub,
-            clock; // 🚀 FIX: Added clock to this module for timeout testing
+            clock;
 
         const originalElementFromPoint = document.elementFromPoint;
 
         hooks.beforeEach(() => {
-            clock = sinon.useFakeTimers(); // 🚀 FIX: Init Fake Timers
+            clock = sinon.useFakeTimers();
             document.elementFromPoint = originalElementFromPoint;
 
             gameState.dragState = resetDragState();
@@ -142,7 +142,7 @@
         });
 
         hooks.afterEach(() => {
-            clock.restore(); // 🚀 FIX: Clean up timers
+            clock.restore();
             sinon.restore();
         });
 
@@ -188,7 +188,6 @@
             assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin falls to the PIN_UNDER state');
         });
 
-        // 🚀 FIX: Removed flaky native setTimeout, now perfectly synchronous using Sinon
         QUnit.test('Pin state drops to PIN_UNDER instantly and rises to PIN_MIDDLE/RAISED after timeout in applySingleMove', assert => {
             const block = gameState.blocks[0];
 
@@ -215,7 +214,6 @@
             const halfX = clientX + (HOLE_SPACING / 2) * pinchState.initialScale;
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: halfX, bubbles: true}));
 
-            // 🚀 FIX: Passed clock to nextFrame
             await nextFrame(clock);
 
             assert.strictEqual(block.pin.dataset.wasOverHole, 'false', 'Pin evaluates as outside hole during drag halfway');
@@ -228,7 +226,6 @@
             const fullX = clientX + (HOLE_SPACING) * pinchState.initialScale;
             document.dispatchEvent(new MouseEvent('mousemove', {clientX: fullX, bubbles: true}));
 
-            // 🚀 FIX: Passed clock to nextFrame
             await nextFrame(clock);
 
             assert.strictEqual(block.pin.dataset.wasOverHole, 'true', 'Pin evaluates as over hole when drag reaches next hole');
@@ -246,7 +243,7 @@
                 view: window
             }));
 
-            await nextFrame(clock); // 🚀 FIX
+            await nextFrame(clock);
             assert.ok(block.pinWrapper.style.transform.includes(`translateX(${-HOLE_SPACING}px)`), 'pinWrapper shift is retained stably after mouseup');
             assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging cleanly resets to false after drop');
 
@@ -260,7 +257,7 @@
                 bubbles: true
             }));
 
-            await nextFrame(clock); // 🚀 FIX
+            await nextFrame(clock);
 
             window.dispatchEvent(new MouseEvent('mouseup', {
                 bubbles: true,
@@ -269,7 +266,7 @@
                 view: window
             }));
 
-            await nextFrame(clock); // 🚀 FIX
+            await nextFrame(clock);
 
             assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), 'Pin state PIN_RAISED drag back');
             assert.ok(block.pinWrapper.style.transform.includes('0px'), 'pinWrapper transformation resets to 0px on successful drag back to origin');
@@ -745,6 +742,180 @@
             });
         })
 
+    });
+
+    QUnit.module('Lockpicker Game Logic - Playback and Solution Rendering', hooks => {
+        let clock;
+        let originalScrollIntoView;
+        let originalJumpToStep;
+
+        hooks.beforeEach(() => {
+            // Use fake timers to instantly test the 250ms glow timeout
+            clock = sinon.useFakeTimers();
+
+            // 1. Reset Global State Variables to defaults
+            currentSolution = null;
+            currentStepIndex = 0;
+            isPlaying = false;
+            moveMap = [];
+
+            // 2. Clean up the actual DOM Elements (populated by setupTestEnvironment)
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
+            playBtn.disabled = false;
+            restartSeqBtn.disabled = false;
+            solveBtn.disabled = false;
+            solutionList.innerHTML = '';
+            squashMovesCheck.checked = false;
+
+            // 3. Clean up actual gameState Blocks and Holes to a pristine state
+            setUpThreeBlocks();
+
+            originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+            HTMLElement.prototype.scrollIntoView = sinon.spy();
+
+            originalJumpToStep = jumpToStep;
+            jumpToStep = sinon.spy();
+        });
+
+        hooks.afterEach(() => {
+            clock.restore();
+            HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+            jumpToStep = originalJumpToStep;
+            solutionList.innerHTML = '';
+        });
+
+        QUnit.test('renderSolutionList() builds a 1-to-1 list when squash is disabled', assert => {
+            squashMovesCheck.checked = false;
+
+            currentSolution = [
+                { plate: gameState.blocks[0].id, direction: 'right' },
+                { plate: gameState.blocks[0].id, direction: 'right' },
+                { plate: gameState.blocks[1].id, direction: 'left' }
+            ];
+
+            renderSolutionList();
+
+            assert.strictEqual(solutionList.children.length, 3, 'Renders exactly 3 steps for 3 moves');
+            assert.deepEqual(moveMap, [0, 1, 2], 'moveMap points 1-to-1 for unsquashed moves');
+
+            const firstStep = solutionList.children[0];
+            assert.ok(firstStep.textContent.includes('RIGHT'), 'Appends proper text and icon formatting for RIGHT');
+            assert.notOk(firstStep.textContent.includes('(x'), 'Does not include move count multiplier text');
+        });
+
+        QUnit.test('renderSolutionList() groups consecutive identical moves when squash is enabled', assert => {
+            squashMovesCheck.checked = true;
+            const p1 = gameState.blocks[0].id;
+            const p2 = gameState.blocks[1].id;
+
+            currentSolution = [
+                { plate: p1, direction: 'right' },
+                { plate: p1, direction: 'right' },
+                { plate: p2, direction: 'left' },
+                { plate: p2, direction: 'left' },
+                { plate: p2, direction: 'left' }
+            ];
+
+            renderSolutionList();
+
+            assert.strictEqual(solutionList.children.length, 2, 'Compresses 5 moves into 2 DOM elements');
+            assert.deepEqual(moveMap, [0, 0, 1, 1, 1], 'moveMap correctly maps original move indexes to the squashed DOM indexes');
+
+            assert.ok(solutionList.children[0].textContent.includes('(x2)'), 'Appends multiplier string (x2) to the first group');
+            assert.ok(solutionList.children[1].textContent.includes('(x3)'), 'Appends multiplier string (x3) to the second group');
+        });
+
+        QUnit.test('renderSolutionList() attaches click listeners linking to targetIndex', assert => {
+            squashMovesCheck.checked = true;
+            currentSolution = [
+                { plate: gameState.blocks[0].id, direction: 'right' },
+                { plate: gameState.blocks[0].id, direction: 'right' }
+            ];
+
+            renderSolutionList();
+            solutionList.children[0].click();
+
+            assert.ok(jumpToStep.calledOnce, 'Clicking a step triggers jumpToStep()');
+            assert.ok(jumpToStep.calledWith(2), 'Passes the correct un-squashed targetIndex to jumpToStep (i+1)');
+        });
+
+        QUnit.test('updatePlaybackUI() properly configures button disabled states based on playback progress', assert => {
+            currentSolution = [
+                { plate: gameState.blocks[0].id, direction: 'right' },
+                { plate: gameState.blocks[1].id, direction: 'left' }
+            ];
+
+            // State: At the beginning, not playing
+            currentStepIndex = 0;
+            isPlaying = false;
+            updatePlaybackUI();
+
+            assert.ok(prevBtn.disabled, 'Prev button disabled at start');
+            assert.notOk(nextBtn.disabled, 'Next button enabled at start');
+            assert.notOk(playBtn.disabled, 'Play button enabled at start');
+            assert.notOk(restartSeqBtn.disabled, 'Restart button enabled');
+
+            // State: In the middle, playing
+            currentStepIndex = 1;
+            isPlaying = true;
+            updatePlaybackUI();
+
+            assert.ok(prevBtn.disabled, 'Prev button disabled while playing');
+            assert.ok(nextBtn.disabled, 'Next button disabled while playing');
+            assert.ok(solveBtn.disabled, 'Solve button disabled while playing');
+            assert.ok(restartSeqBtn.disabled, 'Restart button disabled while playing');
+
+            // State: At the end, not playing
+            currentStepIndex = 2;
+            isPlaying = false;
+            updatePlaybackUI();
+
+            assert.notOk(prevBtn.disabled, 'Prev button enabled at the end');
+            assert.ok(nextBtn.disabled, 'Next button disabled at the end');
+            assert.ok(playBtn.disabled, 'Play button disabled at the end');
+        });
+
+        QUnit.test('updatePlaybackUI() highlights active steps in the list and cleans up previous highlights', assert => {
+            currentSolution = [
+                { plate: gameState.blocks[0].id, direction: 'right' },
+                { plate: gameState.blocks[1].id, direction: 'left' }
+            ];
+            renderSolutionList();
+
+            currentStepIndex = 0;
+            updatePlaybackUI();
+
+            assert.ok(solutionList.children[0].classList.contains('active-step'), 'Applies active-step to the 0th element');
+
+            currentStepIndex = 1;
+            updatePlaybackUI();
+
+            assert.notOk(solutionList.children[0].classList.contains('active-step'), 'Removes active-step from the 0th element on progress');
+            assert.ok(solutionList.children[1].classList.contains('active-step'), 'Applies active-step to the 1st element');
+            assert.ok(HTMLElement.prototype.scrollIntoView.called, 'scrollIntoView was called to maintain visibility');
+        });
+
+        QUnit.test('updatePlaybackUI() smoothly fades out non-targeted glows using a 250ms timeout', assert => {
+            currentSolution = [{ plate: gameState.blocks[0].id, direction: 'right' }];
+            renderSolutionList();
+
+            const staleHole = gameState.blocks[1].el.querySelector('.hole');
+            staleHole.classList.add('glow-white');
+            gameState.glowingHoles.push(staleHole)
+
+            currentStepIndex = 0;
+            updatePlaybackUI();
+
+            assert.ok(staleHole.classList.contains('glow-white'), 'Stale hole retains glow immediately after update');
+            assert.ok(gameState.glowingHoles.includes(staleHole), 'Stale hole remains in the cache array immediately after update');
+
+            clock.tick(250);
+
+            assert.notOk(staleHole.classList.contains('glow-white'), 'Stale hole loses glow-white class precisely after 250ms timeout');
+            assert.strictEqual(staleHole.glowTimeoutId, null, 'Timeout ID on the element is cleaned up');
+            assert.notOk(gameState.glowingHoles.includes(staleHole), 'Stale hole is removed from the gameState.glowingHoles cache');
+        });
     });
 
     //Should be run last one. Cuz of timers

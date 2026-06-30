@@ -28,8 +28,50 @@ const lock = document.getElementById('lock'),
     MAX_DELTA_LIMIT = 120,
     SOLVE_TIMEOUT_MS = 5000,
     MAX_PLATES = 8,
-    ONE_OVER_HOLE_SPACING = 1 / HOLE_SPACING
-;
+    ONE_OVER_HOLE_SPACING = 1 / HOLE_SPACING,
+    PLATE_TEMPLATE = document.createElement('template');
+
+(() => {
+    const renderPinBody = function () {
+        let sidesHtml = '';
+        for (let s = 0; s < 16; s++) {
+            sidesHtml += `<div class="pin-side" style="transform: rotateZ(${s * 22.5}deg) translateY(-6px) rotateX(90deg)"></div>`;
+        }
+        return `<div class="pin-body">${sidesHtml}<div></div></div>`;
+    };
+
+    let holesHtml = '';
+    for (let h = 0; h < 7; h++) {
+        if (3 === h) {
+            holesHtml += `<div class="hole pin-hole ${h}"><div class="pin-wrapper"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
+        } else {
+            holesHtml += `<div class="hole ${h}"></div>`;
+        }
+    }
+
+    let tubeHtml = '';
+    const corners = [
+        {class: 'tube-tr', startAngle: 0},
+        {class: 'tube-br', startAngle: 90},
+        {class: 'tube-bl', startAngle: 180},
+        {class: 'tube-tl', startAngle: 270}
+    ];
+
+    corners.forEach(corner => {
+        let Ydeg = '-30px';
+        if ('tube-tl' === corner.class || 'tube-bl' === corner.class) Ydeg = '-29px';
+        if ('tube-tr' === corner.class || 'tube-br' === corner.class) Ydeg = '-29.5px';
+        tubeHtml += `<div class="corner-tube ${corner.class}">`;
+        for (let a = 7.5; a < 90; a += 15) {
+            let totalAngle = corner.startAngle + a;
+            tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(${Ydeg}) rotateX(-90deg)"></div>`;
+        }
+        tubeHtml += '</div>';
+    });
+
+    PLATE_TEMPLATE.innerHTML = `<div class="plate glow"><div class="front-face"></div><div class="top-face">${holesHtml}</div><div class="right-face"></div><div class="bottom-face"></div><div class="left-face"></div>${tubeHtml}</div>`;
+})();
+
 
 const
     gameState = {
@@ -46,7 +88,9 @@ const
         isMobile: 768 >= window.innerWidth,
         lastTouchTime: 0,
         lastAction: null,
-        isHovering: false
+        isHovering: false,
+        hoveredElements: [],
+        glowingHoles: []
     },
     pinchState = {initialDistance: 0, initialScale: 0, lastScale: 0};
 
@@ -90,18 +134,27 @@ function clearSolutionUI() {
     restartSeqBtn.style.display = 'none';
     stepControlsRow.classList.remove('show-stretch');
     squashLabel.classList.remove('show-stretch');
-    setStatus("", "info");
+    setStatus('', 'info');
     solveBtn.disabled = false;
+
     gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
-    document.querySelectorAll('.hole.glow-white').forEach(h => h.classList.remove('glow-white'));
+
+    gameState.glowingHoles.forEach(h => {
+        clearTimeout(h.glowTimeoutId);
+        h.glowTimeoutId = null;
+        h.classList.remove('glow-white');
+    });
+    gameState.glowingHoles = [];
+
     solutionList.innerHTML = '';
     if (solutionList.classList.contains('is-expanded')) toggleExpandList(false);
 }
 
 function compactSetup() {
-    const n = gameState.blocks.length;
-    const start = gameState.blocks.map(b => Math.round(b.x / HOLE_SPACING));
-    const effects = [];
+    const
+        n = gameState.blocks.length,
+        start = gameState.blocks.map(b => Math.round(b.x / HOLE_SPACING)),
+        effects = [];
     for (let i = 0; i < n; i++) {
         const row = [];
         for (let j = 0; j < n; j++) {
@@ -115,13 +168,13 @@ function compactSetup() {
 }
 
 function solveInWorker() {
-    if (undefined === window.Worker) return Promise.reject(new Error("Web Workers are not supported."));
+    if (undefined === window.Worker) return Promise.reject(new Error('Web Workers are not supported.'));
     const setup = compactSetup();
     const payload = {
         n: setup.n,
         start: setup.start,
         effects: setup.effects,
-        mode: "fewer-switches-fast",
+        mode: 'fewer-switches-fast',
         timeoutMs: SOLVE_TIMEOUT_MS
     };
     return new Promise((resolve, reject) => {
@@ -162,13 +215,16 @@ function jumpToStep(targetIndex) {
 
 function updatePlaybackUI() {
     if (null === currentSolution) return;
+
     prevBtn.disabled = (0 === currentStepIndex) || isPlaying;
     nextBtn.disabled = (currentStepIndex === currentSolution.length) || isPlaying;
     playBtn.disabled = (currentStepIndex === currentSolution.length);
     restartSeqBtn.disabled = isPlaying;
     solveBtn.disabled = isPlaying;
+
     Array.from(solutionList.children).forEach(el => el.classList.remove('active-step'));
     gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
+
     if (currentStepIndex < currentSolution.length) {
         let activeDomIndex = moveMap[currentStepIndex];
         if (undefined !== activeDomIndex && solutionList.children[activeDomIndex]) {
@@ -176,50 +232,78 @@ function updatePlaybackUI() {
             activeEl.classList.add('active-step');
             if (0 === currentStepIndex) {
                 solutionList.scrollTop = 0;
-            } else activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            } else {
+                activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            }
         }
+
         const nextMove = currentSolution[currentStepIndex];
-        const activeBlock = gameState.blocks.find(b => b.id === nextMove.plate);
+        const activeBlock = gameState.blocks[nextMove.plate - 1];
         let elementsToGlow = [];
+
         if (activeBlock) {
             if ('right' === nextMove.direction) {
                 activeBlock.el.classList.add('linked-highlight');
-            } else activeBlock.el.classList.add('linked-highlight-reverse');
+            } else {
+                activeBlock.el.classList.add('linked-highlight-reverse');
+            }
+
             let moveCount = 0;
             if (nextMove.count) {
                 moveCount = nextMove.count;
-            } else for (let i = currentStepIndex; i < currentSolution.length; i++) if (currentSolution[i].plate === nextMove.plate && currentSolution[i].direction === nextMove.direction) {
-                moveCount++;
-            } else break;
-            let currentHoleOffset = Math.round(activeBlock.x / HOLE_SPACING);
-            let currentPinHole = 3 - currentHoleOffset;
-            for (let step = moveCount; step <= moveCount; step++) {
-                let targetHoleIndex = nextMove.direction === 'right' ? currentPinHole - step : currentPinHole + step;
-                if (targetHoleIndex >= 0 && targetHoleIndex <= 6) {
-                    let holes = activeBlock.el.querySelectorAll('.hole');
-                    if (holes[targetHoleIndex]) elementsToGlow.push(holes[targetHoleIndex]);
+            } else {
+                for (let i = currentStepIndex; i < currentSolution.length; i++) {
+                    if (currentSolution[i].plate === nextMove.plate && currentSolution[i].direction === nextMove.direction) {
+                        moveCount++;
+                    } else break;
                 }
             }
+
+            let currentHoleOffset = Math.round(activeBlock.x / HOLE_SPACING);
+            let currentPinHole = 3 - currentHoleOffset;
+            let step = moveCount;
+            let targetHoleIndex = nextMove.direction === 'right' ? currentPinHole - step : currentPinHole + step;
+
+            if (targetHoleIndex >= 0 && targetHoleIndex <= 6) {
+                let holes = activeBlock.el.querySelectorAll('.hole');
+                if (holes[targetHoleIndex]) elementsToGlow.push(holes[targetHoleIndex]);
+            }
         }
-        document.querySelectorAll('.hole.glow-white').forEach(h => {
-            if (!elementsToGlow.includes(h) && !h.glowTimeoutId) h.glowTimeoutId = setTimeout(() => {
-                h.classList.remove('glow-white');
-                h.glowTimeoutId = null;
-            }, 250);
+
+        gameState.glowingHoles.forEach(h => {
+            if (!elementsToGlow.includes(h) && !h.glowTimeoutId) {
+                h.glowTimeoutId = setTimeout(() => {
+                    h.classList.remove('glow-white');
+                    h.glowTimeoutId = null;
+                    // Safely remove from cache once timeout finishes
+                    gameState.glowingHoles = gameState.glowingHoles.filter(glowing => glowing !== h);
+                }, 250);
+            }
         });
+
         elementsToGlow.forEach(h => {
             if (h.glowTimeoutId) {
                 clearTimeout(h.glowTimeoutId);
                 h.glowTimeoutId = null;
             }
-            if (!h.classList.contains('glow-white')) h.classList.add('glow-white');
+            if (!h.classList.contains('glow-white')) {
+                h.classList.add('glow-white');
+                // Ensure it's pushed to our cache array
+                if (!gameState.glowingHoles.includes(h)) {
+                    gameState.glowingHoles.push(h);
+                }
+            }
         });
+
     } else if (0 < currentSolution.length) {
-        document.querySelectorAll('.hole.glow-white').forEach(h => {
-            if (!h.glowTimeoutId) h.glowTimeoutId = setTimeout(() => {
-                h.classList.remove('glow-white');
-                h.glowTimeoutId = null;
-            }, 250);
+        gameState.glowingHoles.forEach(h => {
+            if (!h.glowTimeoutId) {
+                h.glowTimeoutId = setTimeout(() => {
+                    h.classList.remove('glow-white');
+                    h.glowTimeoutId = null;
+                    gameState.glowingHoles = gameState.glowingHoles.filter(glowing => glowing !== h);
+                }, 250);
+            }
         });
         let lastDomIndex = moveMap[currentSolution.length - 1];
         if (undefined !== lastDomIndex && solutionList.children[lastDomIndex]) {
@@ -274,21 +358,21 @@ solveBtn.addEventListener('click', async () => {
         return;
     }
     clearSolutionUI();
-    solveBtn.textContent = "Solving...";
+    solveBtn.textContent = 'Solving...';
     solveBtn.disabled = true;
-    setStatus("Calculating solution...", "info");
+    setStatus('Calculating solution...', 'info');
     try {
         const result = await solveInWorker();
         if (result.timeout) {
-            setStatus("Solver timed out! Try adjusting parameters.", "error");
+            setStatus('Solver timed out! Try adjusting parameters.', 'error');
         } else if (!result || !result.moves) {
-            setStatus("No solution found from this state.", "error");
+            setStatus('No solution found from this state.', 'error');
         } else if (result.moves.length === 0) {
-            setStatus("", "info");
+            setStatus('', 'info');
         } else {
             currentSolution = result.moves;
             currentStepIndex = 0;
-            setStatus(`Solution found: ${result.moves.length} moves!`, "success");
+            setStatus(`Solution found: ${result.moves.length} moves!`, 'success');
             playBtn.style.display = 'block';
             restartSeqBtn.style.display = 'block';
             stepControlsRow.classList.add('show-stretch');
@@ -296,9 +380,9 @@ solveBtn.addEventListener('click', async () => {
             renderSolutionList();
         }
     } catch (error) {
-        setStatus("Solver crashed: " + error.message, "error");
+        setStatus('Solver crashed: ' + error.message, 'error');
     } finally {
-        solveBtn.textContent = "Solve Lock";
+        solveBtn.textContent = 'Solve Lock';
         if (!isPlaying) solveBtn.disabled = false;
     }
 });
@@ -307,12 +391,12 @@ playBtn.addEventListener('click', async () => {
     if (isPlaying) {
         isPlaying = false;
         playBtn.textContent = '▶ Play';
-        setStatus("Paused sequence.", "info");
+        setStatus('Paused sequence.', 'info');
         return;
     }
     isPlaying = true;
     playBtn.textContent = '⏸ Pause';
-    setStatus("Playing sequence...", "info");
+    setStatus('Playing sequence...', 'info');
     updatePlaybackUI();
     while (currentStepIndex < currentSolution.length && isPlaying) {
         applySingleMove(currentSolution[currentStepIndex], false);
@@ -323,20 +407,20 @@ playBtn.addEventListener('click', async () => {
     isPlaying = false;
     if (currentStepIndex >= currentSolution.length) {
         playBtn.textContent = '▶ Play';
-        setStatus("Sequence complete!", "success");
+        setStatus('Sequence complete!', 'success');
     }
     updatePlaybackUI();
 });
 
 restartSeqBtn.addEventListener('click', () => {
     if (null === currentSolution || isPlaying) return;
-    setStatus("Restarting sequence...", "info");
+    setStatus('Restarting sequence...', 'info');
     while (currentStepIndex > 0) {
         applySingleMove(currentSolution[currentStepIndex - 1], true);
         currentStepIndex--;
     }
     playBtn.textContent = '▶ Play';
-    setStatus(`Solution found: ${currentSolution.length} moves!`, "success");
+    setStatus(`Solution found: ${currentSolution.length} moves!`, 'success');
     updatePlaybackUI();
 });
 
@@ -348,7 +432,7 @@ function vibrate(duration) {
     if (!navigator.getGamepads) return;
     const gamepads = navigator.getGamepads();
     for (let gamepad of gamepads) if (gamepad && gamepad.vibrationActuator && typeof gamepad.vibrationActuator.playEffect === 'function') {
-        gamepad.vibrationActuator.playEffect("dual-rumble", {
+        gamepad.vibrationActuator.playEffect('dual-rumble', {
             startDelay: 0,
             //for gamepads its increesad
             duration: duration * 4,
@@ -445,81 +529,59 @@ function updateHoverPreview(plate) {
     if (gameState.activeLinkerId || currentSolution) return;
     clearHoverPreview(true);
     if (!plate) return;
+
     const hoveredBlock = gameState.blocks.find(b => b.el === plate);
     if (!hoveredBlock) return;
+
     plate.classList.add('is-touched');
+    gameState.hoveredElements.push(plate);
     gameState.isHovering = true;
+
     const groupIds = Object.keys(hoveredBlock.group);
     if (groupIds.length <= 1) return;
+
     groupIds.forEach(idStr => {
         const id = +idStr;
         if (id === hoveredBlock.id) return;
         const member = gameState.blocks.find(b => b.id === id);
         if (!member) return;
+
         member.el.classList.add(1 === hoveredBlock.group[id] ? 'linked-highlight' : 'linked-highlight-reverse');
+        gameState.hoveredElements.push(member.el);
     });
 }
 
 function clearHoverPreview(isEndHovering) {
     if (gameState.activeLinkerId || currentSolution) return;
     if (gameState.lastAction === 'deselect') {
-        gameState.lastAction === 'deselectDragEnd';
+        gameState.lastAction = 'deselectDragEnd';
         return;
     }
     if (!gameState.isHovering && !isEndHovering) return;
-    document.querySelectorAll('.linked-highlight, .linked-highlight-reverse, .is-touched').forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
+
+    if (gameState.hoveredElements.length > 0) {
+        gameState.hoveredElements.forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
+        gameState.hoveredElements = [];
+    }
+
     gameState.isHovering = false;
 }
 
 function createPlate(id, prevX, zPos) {
 
-    const plate = document.createElement('div');
-    plate.className = 'plate glow';
+    const
+        plateNode = PLATE_TEMPLATE.content.cloneNode(true),
+        plate = plateNode.firstElementChild;
+
     plate.dataset.id = id;
-
-
-    const renderPinBody = function () {
-        let sidesHtml = '';
-        for (let s = 0; s < 16; s++) sidesHtml += `<div class="pin-side" style="transform: rotateZ(${s * 22.5}deg) translateY(-6px) rotateX(90deg)"></div>`;
-        return `<div class="pin-body">${sidesHtml}<div></div></div>`;
-    }
-
-    let holesHtml = '';
-    for (let h = 0; h < 7; h++) {
-        if (3 === h) {
-            holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
-        } else {
-            holesHtml += `<div class="hole ` + h + `"></div>`;
-        }
-    }
-
-    let tubeHtml = '';
-    const corners = [
-        {class: 'tube-tr', startAngle: 0},
-        {class: 'tube-br', startAngle: 90},
-        {class: 'tube-bl', startAngle: 180},
-        {class: 'tube-tl', startAngle: 270}
-    ];
-
-    corners.forEach(corner => {
-        let Ydeg = '-30px';
-        if ('tube-tl' === corner.class || 'tube-bl' === corner.class) {
-            Ydeg = '-29px';
-        }
-        if ('tube-tr' === corner.class || 'tube-br' === corner.class) {
-            Ydeg = '-29.5px';
-        }
-        tubeHtml += `<div class="corner-tube ${corner.class}">`;
-        for (let a = 7.5; a < 90; a += 15) {
-            let totalAngle = corner.startAngle + a;
-            tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(${Ydeg}) rotateX(-90deg)"></div>`;
-        }
-        tubeHtml += '</div>';
-    });
-
-    plate.innerHTML = ` <div class="front-face"></div> <div class="top-face">${holesHtml}</div> <div class="right-face"></div> <div class="bottom-face"></div> <div class="left-face"></div> ${tubeHtml} `;
     plate.style.transform = `translateZ(${zPos}px) translateX(${prevX}px)`;
 
+    const
+        pinWrapper = plate.querySelector('.pin-wrapper'),
+        pin = plate.querySelector('.pin');
+
+    pinWrapper.style.transform = `translateX(${-prevX}px)`;
+    pin.dataset.wasOverHole = 'true';
 
     plate.addEventListener('mouseenter', () => {
         if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
@@ -528,65 +590,74 @@ function createPlate(id, prevX, zPos) {
     plate.addEventListener('mouseleave', () => clearHoverPreview(true));
     plate.addEventListener('touchstart', () => clearHoverPreview(true), {passive: true});
 
-    return plate;
+    return { plate, pinWrapper, pin };
 }
 
-//todo arg for default state for tutorial or the tutorial defaults
-function renderBlocks() {
 
+function renderBlocks() {
     const
         count = +countInput.value,
         centerOffset = (count - 1) / 2,
-        spacing = gameState.isMobile ? 55 : 50
-    ;
+        spacing = gameState.isMobile ? 55 : 50;
 
-    //todo does it need to be map here (id as a place in obj)
-    const oldBlocks = new Map(gameState.blocks.map(b => [b.id, b]));
+    let oldBlocksMap = null;
+    if (gameState.blocks && gameState.blocks.length > 0) {
+        oldBlocksMap = new Map(gameState.blocks.map(b => [b.id, b]));
+    }
 
     lock.innerHTML = '';
     gameState.blocks = [];
     gameState.activeLinkerId = null;
 
+    //for batch inserts
+    const fragment = document.createDocumentFragment();
+
     for (let i = 0; i < count; i++) {
-        const id = i + 1;
-        const zPos = (centerOffset - i) * spacing;
 
-        let prevX = 0;
-        let currentGroup = null;
+        const
+            id = i + 1,
+            zPos = (centerOffset - i) * spacing;
 
-        const oldBlock = oldBlocks.get(id);
-        if (oldBlock) {
-            prevX = oldBlock.x;
-            const oldGroup = oldBlock.group;
+        let prevX = 0,
+            currentGroup = null;
 
-            if (Object.keys(oldGroup).length > 1) {
-                currentGroup = {};
-                for (const key in oldGroup) {
-                    const kid = Number(key);
-                    if (kid <= count) {
-                        currentGroup[kid] = oldGroup[key];
+        if (oldBlocksMap) {
+            const oldBlock = oldBlocksMap.get(id);
+            if (oldBlock) {
+                prevX = oldBlock.x;
+                const oldGroup = oldBlock.group;
+
+                if (Object.keys(oldGroup).length > 1) {
+                    currentGroup = {};
+                    for (const key in oldGroup) {
+                        const kid = +key;
+                        if (kid <= count) {
+                            currentGroup[kid] = oldGroup[key];
+                        }
                     }
                 }
             }
         }
 
-        const plate = createPlate(id, prevX, zPos);
-        lock.prepend(plate);
+        const { plate, pinWrapper, pin } = createPlate(id, prevX, zPos);
+        fragment.prepend(plate);
 
         let b = {
             id: id,
             x: prevX,
             z: zPos,
             el: plate,
-            pinWrapper: plate.querySelector('.pin-wrapper'),
-            pin: plate.querySelector('.pin'),
+            pinWrapper: pinWrapper,
+            pin: pin,
             group: currentGroup || {[id]: 1}
         };
 
         gameState.blocks.push(b);
-
-        updatePinState(b)
+        updatePinState(b);
     }
+
+    lock.appendChild(fragment);
+
     renderInspectorRow();
 }
 
@@ -678,7 +749,7 @@ function longPress(clickedId) {
     clearTimeout(gameState.dragState.longPressTimer);
     gameState.dragState.longPressTimer = setTimeout(() => {
         if (!gameState.dragState.isDragging && gameState.dragState.activePlate) {
-            let curBlock = gameState.blocks.find(b => b.id === clickedId);
+            let curBlock = gameState.blocks[clickedId - 1];
             if (!curBlock) return;
             if (null === gameState.activeLinkerId) {
                 gameState.activeLinkerId = curBlock.id;
@@ -686,7 +757,7 @@ function longPress(clickedId) {
                 Object.keys(curBlock.group).forEach(idStr => {
                     let id = +idStr;
                     if (id !== curBlock.id) {
-                        let b = gameState.blocks.find(x => x.id === id);
+                        let b = gameState.blocks[id - 1];
                         if (b) if (1 === curBlock.group[id]) b.el.classList.add('linked-highlight'); else b.el.classList.add('linked-highlight-reverse');
                     }
                 });
@@ -699,7 +770,7 @@ function longPress(clickedId) {
                 vibrate(15)
                 renderInspectorRow();
             } else {
-                let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
+                let masterBlock = gameState.blocks[gameState.activeLinkerId - 1];
                 if (masterBlock.group[curBlock.id]) {
                     if (1 === masterBlock.group[curBlock.id]) {
                         masterBlock.group[curBlock.id] = -1;
@@ -728,7 +799,7 @@ function applySingleMove(move, reverse = false) {
         const
             id = +i,
             relativeDir = (primaryBlock.group[id]),
-            b = gameState.blocks.find(x => x.id === id);
+            b = gameState.blocks[id - 1];
         if (!b) return;
         updateBlockState(
             b,
@@ -1249,8 +1320,8 @@ async function runTutorialStep(version) {
         clean();
 
         tutorialText.textContent = gameState.isMobile
-            ? "Use a two-finger pinch gesture on the screen to zoom in or out."
-            : "Use the slider to adjust zooming.";
+            ? 'Use a two-finger pinch gesture on the screen to zoom in or out.'
+            : 'Use the slider to adjust zooming.';
 
         const baseScale = sizeInput ? parseFloat(sizeInput.value) : 1;
 
@@ -1281,7 +1352,7 @@ async function runTutorialStep(version) {
 
     } else if (2 === tutorialStep) {
         clean();
-        tutorialText.textContent = "You can drag selected plates left or right.";
+        tutorialText.textContent = 'You can drag selected plates left or right.';
         let plateIndex = 0;
         while (version === currentTutorialVersion) {
             gameState.blocks.forEach(b => b.el.querySelector('.front-face').style.borderColor = '');
@@ -1293,7 +1364,7 @@ async function runTutorialStep(version) {
             await sleep(600);
         }
     } else if (3 === tutorialStep) {
-        tutorialText.textContent = "Adjust plates like in a game: plates count and plates position.";
+        tutorialText.textContent = 'Adjust plates like in a game: plates count and plates position.';
         while (version === currentTutorialVersion) {
             if (6 !== +countInput.value) {
                 countInput.value = 6;
@@ -1337,7 +1408,7 @@ async function runTutorialStep(version) {
         }
     } else if (4 === tutorialStep) {
         clean();
-        tutorialText.textContent = "Long-press to group plates. Blue moves with it, Red opposite. Tap again to deselect.";
+        tutorialText.textContent = 'Long-press to group plates. Blue moves with it, Red opposite. Tap again to deselect.';
         while (version === currentTutorialVersion) {
             clean();
             await sleep(1200);
@@ -1381,7 +1452,9 @@ async function runTutorialStep(version) {
         }
     } else if (5 === tutorialStep) {
         clean();
-        tutorialText.textContent = gameState.isMobile ? "Touch the number row to see what groups are selected for plate" : "Hover with mouse to understand what are selected for plate";
+        tutorialText.textContent = gameState.isMobile
+            ? 'Touch the number row to see what groups are selected for plate'
+            : 'Hover with mouse to understand what are selected for plate';
         while (version === currentTutorialVersion) {
             gameState.blocks.forEach(b => b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched'));
             await sleep(500);
@@ -1418,7 +1491,9 @@ async function runTutorialStep(version) {
         }
     } else if (6 === tutorialStep) {
         clean();
-        tutorialText.textContent = gameState.isMobile ? "You can walk step-by-step by pressing step controls. If you hold it, it will move plates state-by-state." : "If squashed is checked, plates will go from state-to-state. Without squashed, you can walk single steps.";
+        tutorialText.textContent = gameState.isMobile
+            ? 'You can walk step-by-step by pressing step controls. If you hold it, it will move plates state-by-state.'
+            : 'If squashed is checked, plates will go from state-to-state. Without squashed, you can walk single steps.';
         resetBtn.click();
         await sleep(200);
         if (version !== currentTutorialVersion) return;
@@ -1499,7 +1574,7 @@ async function runTutorialStep(version) {
         }
     } else if (7 === tutorialStep) {
         clean();
-        tutorialText.textContent = "You can play the whole sequence automatically. Press the play button.";
+        tutorialText.textContent = 'You can play the whole sequence automatically. Press the play button.';
         while (version === currentTutorialVersion) {
             resetBtn.click();
             await sleep(400);
