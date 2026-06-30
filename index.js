@@ -1228,7 +1228,11 @@ document.addEventListener('touchstart', handleDragStart, {passive: false});
 document.addEventListener('touchmove', handleDragMove, {passive: false});
 window.addEventListener('touchend', handleDragEnd);
 document.addEventListener('touchcancel', handleDragEnd);
-window.addEventListener('touchstart', () => gameState.isInteracted = true, { once: true, passive: true });
+window.addEventListener('touchstart', () => {
+    if (navigator.vibrate) {
+        navigator.vibrate(15);
+    }
+}, { once: true, passive: true });
 
 const tutorialOverlay = document.getElementById('tutorialOverlay'),
     tutorialBubble = document.getElementById('tutorialBubble'),
