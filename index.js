@@ -75,6 +75,7 @@ const lock = document.getElementById('lock'),
 
 const
     gameState = {
+        isInteracted: false,
         blocks: [],
         activeLinkerId: null,
         dragState: {
@@ -94,7 +95,7 @@ const
     },
     pinchState = {initialDistance: 0, initialScale: 0, lastScale: 0};
 
-function setInitialScale() {
+function setInitialState() {
     pinchState.initialScale = gameState.isMobile
         // The plate mechanism is ~340px wide. We scale it down to fit the device width.
         // We subtract 140px to account for some padding/margins.
@@ -103,9 +104,12 @@ function setInitialScale() {
     pinchState.lastScale = pinchState.initialScale
     sizeInput.value = pinchState.initialScale;
     document.documentElement.style.setProperty('--block-scale', pinchState.initialScale);
+    if (navigator.getGamepads) {
+        let gamepads  = navigator.getGamepads();
+    }
 }
 
-setInitialScale();
+setInitialState();
 
 if (gameState.isMobile) squashMovesCheck.checked = false;
 
@@ -427,7 +431,13 @@ restartSeqBtn.addEventListener('click', () => {
 
 function vibrate(duration) {
 
-    if (navigator.vibrate) navigator.vibrate(duration);
+    if (false === gameState.isInteracted) {
+        return;
+    }
+
+    if (navigator.vibrate) {
+        navigator.vibrate(duration)
+    }
 
     if (!navigator.getGamepads) return;
     const gamepads = navigator.getGamepads();
@@ -456,6 +466,10 @@ function updateSinglePinMove(b, outTime) {
 }
 
 function updatePinState(block, options = {}) {
+
+    if (false === gameState.isInteracted) {
+        return;
+    }
 
     const {
         x = block.x,
@@ -496,7 +510,7 @@ function updatePinState(block, options = {}) {
         return;
     }
 
-    if ('false' === pin.dataset.wasOverHole) {
+   if ('false' === pin.dataset.wasOverHole) {
         pin.dataset.wasOverHole = 'true';
         vibrate(15);
     }
@@ -581,8 +595,7 @@ function createPlate(id, prevX, zPos) {
         pin = plate.querySelector('.pin');
 
     pinWrapper.style.transform = `translateX(${-prevX}px)`;
-    //need like this cuz of first touch vibration
-    pin.dataset.wasOverHole = 'false';
+    pin.dataset.wasOverHole = 'true';
 
     plate.addEventListener('mouseenter', () => {
         if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
@@ -844,6 +857,9 @@ function updateDragDOM() {
 }
 
 function handleDragStart(e) {
+
+    gameState.isInteracted = true;
+
     const touches = e.touches,
         dragState = gameState.dragState;
 
