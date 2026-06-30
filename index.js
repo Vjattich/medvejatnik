@@ -223,7 +223,7 @@ function updatePlaybackUI() {
         }
         const
             nextMove = currentSolution[currentStepIndex],
-            activeBlock = gameState.blocks.find(b => b.id === nextMove.plate);
+            activeBlock = gameState.blocks[nextMove.plate - 1];
         let elementsToGlow = [];
         if (activeBlock) {
             if ('right' === nextMove.direction) {
@@ -499,7 +499,7 @@ function updateHoverPreview(plate) {
     groupIds.forEach(idStr => {
         const id = +idStr;
         if (id === hoveredBlock.id) return;
-        const member = gameState.blocks.find(b => b.id === id);
+        const member = gameState.blocks[id - 1];
         if (!member) return;
         member.el.classList.add(1 === hoveredBlock.group[id] ? 'linked-highlight' : 'linked-highlight-reverse');
     });
@@ -697,7 +697,7 @@ function longPress(clickedId) {
     clearTimeout(gameState.dragState.longPressTimer);
     gameState.dragState.longPressTimer = setTimeout(() => {
         if (!gameState.dragState.isDragging && gameState.dragState.activePlate) {
-            let curBlock = gameState.blocks.find(b => b.id === clickedId);
+            let curBlock = gameState.blocks[clickedId - 1];
             if (!curBlock) return;
             if (null === gameState.activeLinkerId) {
                 gameState.activeLinkerId = curBlock.id;
@@ -705,7 +705,7 @@ function longPress(clickedId) {
                 Object.keys(curBlock.group).forEach(idStr => {
                     let id = +idStr;
                     if (id !== curBlock.id) {
-                        let b = gameState.blocks.find(x => x.id === id);
+                        let b = gameState.blocks[id - 1];
                         if (b) if (1 === curBlock.group[id]) b.el.classList.add('linked-highlight'); else b.el.classList.add('linked-highlight-reverse');
                     }
                 });
@@ -718,7 +718,7 @@ function longPress(clickedId) {
                 vibrate(15)
                 renderInspectorRow();
             } else {
-                let masterBlock = gameState.blocks.find(b => b.id === gameState.activeLinkerId);
+                let masterBlock = gameState.blocks[gameState.activeLinkerId - 1];
                 if (masterBlock.group[curBlock.id]) {
                     if (1 === masterBlock.group[curBlock.id]) {
                         masterBlock.group[curBlock.id] = -1;
@@ -747,7 +747,7 @@ function applySingleMove(move, reverse = false) {
         const
             id = +i,
             relativeDir = (primaryBlock.group[id]),
-            b = gameState.blocks.find(x => x.id === id);
+            b = gameState.blocks[id - 1];
         if (!b) return;
         updateBlockState(
             b,
