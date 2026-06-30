@@ -28,8 +28,50 @@ const lock = document.getElementById('lock'),
     MAX_DELTA_LIMIT = 120,
     SOLVE_TIMEOUT_MS = 5000,
     MAX_PLATES = 8,
-    ONE_OVER_HOLE_SPACING = 1 / HOLE_SPACING
-;
+    ONE_OVER_HOLE_SPACING = 1 / HOLE_SPACING,
+    PLATE_TEMPLATE = document.createElement('template');
+
+(() => {
+    const renderPinBody = function () {
+        let sidesHtml = '';
+        for (let s = 0; s < 16; s++) {
+            sidesHtml += `<div class="pin-side" style="transform: rotateZ(${s * 22.5}deg) translateY(-6px) rotateX(90deg)"></div>`;
+        }
+        return `<div class="pin-body">${sidesHtml}<div></div></div>`;
+    };
+
+    let holesHtml = '';
+    for (let h = 0; h < 7; h++) {
+        if (3 === h) {
+            holesHtml += `<div class="hole pin-hole ${h}"><div class="pin-wrapper"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
+        } else {
+            holesHtml += `<div class="hole ${h}"></div>`;
+        }
+    }
+
+    let tubeHtml = '';
+    const corners = [
+        {class: 'tube-tr', startAngle: 0},
+        {class: 'tube-br', startAngle: 90},
+        {class: 'tube-bl', startAngle: 180},
+        {class: 'tube-tl', startAngle: 270}
+    ];
+
+    corners.forEach(corner => {
+        let Ydeg = '-30px';
+        if ('tube-tl' === corner.class || 'tube-bl' === corner.class) Ydeg = '-29px';
+        if ('tube-tr' === corner.class || 'tube-br' === corner.class) Ydeg = '-29.5px';
+        tubeHtml += `<div class="corner-tube ${corner.class}">`;
+        for (let a = 7.5; a < 90; a += 15) {
+            let totalAngle = corner.startAngle + a;
+            tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(${Ydeg}) rotateX(-90deg)"></div>`;
+        }
+        tubeHtml += '</div>';
+    });
+
+    PLATE_TEMPLATE.innerHTML = `<div class="plate glow"><div class="front-face"></div><div class="top-face">${holesHtml}</div><div class="right-face"></div><div class="bottom-face"></div><div class="left-face"></div>${tubeHtml}</div>`;
+})();
+
 
 const
     gameState = {
@@ -99,9 +141,10 @@ function clearSolutionUI() {
 }
 
 function compactSetup() {
-    const n = gameState.blocks.length;
-    const start = gameState.blocks.map(b => Math.round(b.x / HOLE_SPACING));
-    const effects = [];
+    const
+        n = gameState.blocks.length,
+        start = gameState.blocks.map(b => Math.round(b.x / HOLE_SPACING)),
+        effects = [];
     for (let i = 0; i < n; i++) {
         const row = [];
         for (let j = 0; j < n; j++) {
@@ -178,8 +221,9 @@ function updatePlaybackUI() {
                 solutionList.scrollTop = 0;
             } else activeEl.scrollIntoView({behavior: 'smooth', block: 'nearest'});
         }
-        const nextMove = currentSolution[currentStepIndex];
-        const activeBlock = gameState.blocks.find(b => b.id === nextMove.plate);
+        const
+            nextMove = currentSolution[currentStepIndex],
+            activeBlock = gameState.blocks.find(b => b.id === nextMove.plate);
         let elementsToGlow = [];
         if (activeBlock) {
             if ('right' === nextMove.direction) {
@@ -474,53 +518,18 @@ function clearHoverPreview(isEndHovering) {
 
 function createPlate(id, prevX, zPos) {
 
-    const plate = document.createElement('div');
-    plate.className = 'plate glow';
+    const
+        plateNode = PLATE_TEMPLATE.content.cloneNode(true),
+        plate = plateNode.firstElementChild;
+
     plate.dataset.id = id;
-
-
-    const renderPinBody = function () {
-        let sidesHtml = '';
-        for (let s = 0; s < 16; s++) sidesHtml += `<div class="pin-side" style="transform: rotateZ(${s * 22.5}deg) translateY(-6px) rotateX(90deg)"></div>`;
-        return `<div class="pin-body">${sidesHtml}<div></div></div>`;
-    }
-
-    let holesHtml = '';
-    for (let h = 0; h < 7; h++) {
-        if (3 === h) {
-            holesHtml += `<div class="hole pin-hole ` + h + ` "><div class="pin-wrapper" style="transform: translateX(${-prevX}px)"><div class="pin pin-visible pin-body-visible" style="transform: translateZ(${PIN_RAISED}px)">${renderPinBody()}<div class="pin-cap"></div></div></div></div>`;
-        } else {
-            holesHtml += `<div class="hole ` + h + `"></div>`;
-        }
-    }
-
-    let tubeHtml = '';
-    const corners = [
-        {class: 'tube-tr', startAngle: 0},
-        {class: 'tube-br', startAngle: 90},
-        {class: 'tube-bl', startAngle: 180},
-        {class: 'tube-tl', startAngle: 270}
-    ];
-
-    corners.forEach(corner => {
-        let Ydeg = '-30px';
-        if ('tube-tl' === corner.class || 'tube-bl' === corner.class) {
-            Ydeg = '-29px';
-        }
-        if ('tube-tr' === corner.class || 'tube-br' === corner.class) {
-            Ydeg = '-29.5px';
-        }
-        tubeHtml += `<div class="corner-tube ${corner.class}">`;
-        for (let a = 7.5; a < 90; a += 15) {
-            let totalAngle = corner.startAngle + a;
-            tubeHtml += `<div class="tube-panel" style="transform: rotateZ(${totalAngle}deg) translateY(${Ydeg}) rotateX(-90deg)"></div>`;
-        }
-        tubeHtml += '</div>';
-    });
-
-    plate.innerHTML = ` <div class="front-face"></div> <div class="top-face">${holesHtml}</div> <div class="right-face"></div> <div class="bottom-face"></div> <div class="left-face"></div> ${tubeHtml} `;
     plate.style.transform = `translateZ(${zPos}px) translateX(${prevX}px)`;
 
+    const
+        pinWrapper = plate.querySelector('.pin-wrapper'),
+        pin = plate.querySelector('.pin');
+
+    pinWrapper.style.transform = `translateX(${-prevX}px)`;
 
     plate.addEventListener('mouseenter', () => {
         if (Date.now() - (gameState.lastTouchTime || 0) < 500) return;
@@ -529,65 +538,74 @@ function createPlate(id, prevX, zPos) {
     plate.addEventListener('mouseleave', () => clearHoverPreview(true));
     plate.addEventListener('touchstart', () => clearHoverPreview(true), {passive: true});
 
-    return plate;
+    return { plate, pinWrapper, pin };
 }
 
-//todo arg for default state for tutorial or the tutorial defaults
-function renderBlocks() {
 
+function renderBlocks() {
     const
         count = +countInput.value,
         centerOffset = (count - 1) / 2,
-        spacing = gameState.isMobile ? 55 : 50
-    ;
+        spacing = gameState.isMobile ? 55 : 50;
 
-    //todo does it need to be map here (id as a place in obj)
-    const oldBlocks = new Map(gameState.blocks.map(b => [b.id, b]));
+    let oldBlocksMap = null;
+    if (gameState.blocks && gameState.blocks.length > 0) {
+        oldBlocksMap = new Map(gameState.blocks.map(b => [b.id, b]));
+    }
 
     lock.innerHTML = '';
     gameState.blocks = [];
     gameState.activeLinkerId = null;
 
+    //for batch inserts
+    const fragment = document.createDocumentFragment();
+
     for (let i = 0; i < count; i++) {
-        const id = i + 1;
-        const zPos = (centerOffset - i) * spacing;
 
-        let prevX = 0;
-        let currentGroup = null;
+        const
+            id = i + 1,
+            zPos = (centerOffset - i) * spacing;
 
-        const oldBlock = oldBlocks.get(id);
-        if (oldBlock) {
-            prevX = oldBlock.x;
-            const oldGroup = oldBlock.group;
+        let prevX = 0,
+            currentGroup = null;
 
-            if (Object.keys(oldGroup).length > 1) {
-                currentGroup = {};
-                for (const key in oldGroup) {
-                    const kid = Number(key);
-                    if (kid <= count) {
-                        currentGroup[kid] = oldGroup[key];
+        if (oldBlocksMap) {
+            const oldBlock = oldBlocksMap.get(id);
+            if (oldBlock) {
+                prevX = oldBlock.x;
+                const oldGroup = oldBlock.group;
+
+                if (Object.keys(oldGroup).length > 1) {
+                    currentGroup = {};
+                    for (const key in oldGroup) {
+                        const kid = +key;
+                        if (kid <= count) {
+                            currentGroup[kid] = oldGroup[key];
+                        }
                     }
                 }
             }
         }
 
-        const plate = createPlate(id, prevX, zPos);
-        lock.prepend(plate);
+        const { plate, pinWrapper, pin } = createPlate(id, prevX, zPos);
+        fragment.prepend(plate);
 
         let b = {
             id: id,
             x: prevX,
             z: zPos,
             el: plate,
-            pinWrapper: plate.querySelector('.pin-wrapper'),
-            pin: plate.querySelector('.pin'),
+            pinWrapper: pinWrapper,
+            pin: pin,
             group: currentGroup || {[id]: 1}
         };
 
         gameState.blocks.push(b);
-
-        updatePinState(b)
+        updatePinState(b);
     }
+
+    lock.appendChild(fragment);
+
     renderInspectorRow();
 }
 
