@@ -85,7 +85,7 @@ async function runTutorialStep(version) {
         tutorialArrow.style.display = 'none';
 
         gameState.blocks.filter(b => b.x !== 0).forEach(b => {
-            b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched');
+            b.el.classList.remove(UI_CLASSES.SELECTED, UI_CLASSES.LINKED, UI_CLASSES.RINKED, UI_CLASSES.TOUCHED);
             b.el.querySelector('.front-face').style.borderColor = '';
             updateBlockState(b, {
                 x: 0,
@@ -202,17 +202,17 @@ async function runTutorialStep(version) {
             if (version !== currentTutorialVersion) break;
             if (gameState.blocks.length >= 3) {
                 const p1 = gameState.blocks[0], p2 = gameState.blocks[1], p3 = gameState.blocks[2];
-                p1.el.classList.add('selected');
+                p1.el.classList.add(UI_CLASSES.SELECTED);
                 await sleep(800);
                 if (version !== currentTutorialVersion) break;
                 positionArrowRelative(p2.el, 10, -50);
                 await sleep(600);
-                p2.el.classList.add('linked-highlight');
+                p2.el.classList.add(UI_CLASSES.LINKED);
                 await sleep(800);
                 if (version !== currentTutorialVersion) break;
                 positionArrowRelative(p3.el, 10, -50);
                 await sleep(600);
-                p3.el.classList.add('linked-highlight-reverse');
+                p3.el.classList.add(UI_CLASSES.RINKED);
                 await sleep(800);
                 if (version !== currentTutorialVersion) break;
                 tutorialArrow.style.display = 'none';
@@ -243,7 +243,7 @@ async function runTutorialStep(version) {
             ? 'Touch the number row to see what groups are selected for plate'
             : 'Hover with mouse to understand what are selected for plate';
         while (version === currentTutorialVersion) {
-            gameState.blocks.forEach(b => b.el.classList.remove('selected', 'linked-highlight', 'linked-highlight-reverse', 'is-touched'));
+            gameState.blocks.forEach(b => b.el.classList.remove(UI_CLASSES.SELECTED, UI_CLASSES.LINKED, UI_CLASSES.RINKED, UI_CLASSES.TOUCHED));
             await sleep(500);
             if (version !== currentTutorialVersion) break;
             if (gameState.blocks.length >= 3) {
@@ -260,18 +260,18 @@ async function runTutorialStep(version) {
                     const btn1 = inspectorRow.children[0];
                     if (btn1) btn1.style.background = '#555';
                 }
-                p1.el.classList.add('is-touched');
-                p2.el.classList.add('linked-highlight');
-                p3.el.classList.add('linked-highlight-reverse');
+                p1.el.classList.add(UI_CLASSES.TOUCHED);
+                p2.el.classList.add(UI_CLASSES.LINKED);
+                p3.el.classList.add(UI_CLASSES.RINKED);
                 await sleep(2000);
                 if (version !== currentTutorialVersion) break;
                 if (gameState.isMobile) {
                     const btn1 = inspectorRow.children[0];
                     if (btn1) btn1.style.background = btn1.dataset.defaultBg || '';
                 }
-                p1.el.classList.remove('is-touched');
-                p2.el.classList.remove('linked-highlight');
-                p3.el.classList.remove('linked-highlight-reverse');
+                p1.el.classList.remove(UI_CLASSES.TOUCHED);
+                p2.el.classList.remove(UI_CLASSES.LINKED);
+                p3.el.classList.remove(UI_CLASSES.RINKED);
                 tutorialArrow.style.display = 'none';
                 await sleep(1000);
             } else await sleep(1000);

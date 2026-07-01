@@ -151,7 +151,7 @@
             block.x = HOLE_SPACING / 2;
             updatePinState(block);
 
-            assert.equal(block.pin.dataset.wasOverHole, "false", 'Updates dataset.wasOverHole to string "false"');
+            assert.equal(block.pin.dataset.wasOverHole, 'false', 'Updates dataset.wasOverHole to string "false"');
             assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), `Pushes pin to the PIN_UNDER state (${PIN_UNDER}px)`);
 
             if (vibrateStub) assert.ok(vibrateStub.notCalled, 'Does not trigger mobile vibration');
@@ -185,7 +185,7 @@
             block.x = 3.0;
             updatePinState(block);
 
-            assert.strictEqual(block.pin.dataset.wasOverHole, "false", 'A distance of exactly 3px evaluates as outside the hole');
+            assert.strictEqual(block.pin.dataset.wasOverHole, 'false', 'A distance of exactly 3px evaluates as outside the hole');
             assert.ok(block.pin.style.transform.includes(String(PIN_UNDER)), 'Pin falls to the PIN_UNDER state');
         });
 
@@ -292,39 +292,29 @@
             }];
             gameState.dragState.isDragging = true;
 
-            const touchEvent = {
+            handleDragStart({
                 type: 'touchstart',
                 touches: [
                     {clientX: 100, clientY: 100},
                     {clientX: 150, clientY: 150}
                 ],
                 preventDefault: () => {}
-            };
+            });
 
-            handleDragStart(touchEvent);
-
-            const s_1 = block.el.style.transform.indexOf('X') + 2,
+            const
+                s_1 = block.el.style.transform.indexOf('X') + 2,
                 x_1 = -block.el.style.transform.substring(s_1, block.el.style.transform.length - 3);
-            assert.ok(
-                block.pinWrapper.style.transform.includes(`translateX(${-x_1}px)`),
-                'pinWrapper instantly counter-translates back to -initialX (0px)'
-            );
-            assert.strictEqual(
-                block.pin.dataset.wasOverHole, "true",
-                'updatePinState recognizes the pin is back over a valid hole'
-            );
-            assert.ok(
-                block.pin.style.transform.includes(String(PIN_RAISED)),
-                'updatePinState springs the pin back up to PIN_RAISED state at origin'
-            );
 
+            assert.ok(block.pinWrapper.style.transform.includes(`translateX(${-x_1}px)`), 'pinWrapper instantly counter-translates back to -initialX (0px)');
+            assert.strictEqual(block.pin.dataset.wasOverHole, 'true', 'updatePinState recognizes the pin is back over a valid hole');
+            assert.ok(block.pin.style.transform.includes(String(PIN_RAISED)), 'updatePinState springs the pin back up to PIN_RAISED state at origin');
             assert.strictEqual(block.x, initialX, 'Block x coordinate is reset');
             assert.strictEqual(gameState.dragState.activePlate, null, 'Active plate is cleanly released');
             assert.strictEqual(gameState.dragState.movingGroup.length, 0, 'Moving group array is cleared');
             assert.strictEqual(gameState.dragState.isDragging, false, 'isDragging flag is turned off');
-            assert.ok(document.body.classList.contains('is-zooming'), 'is-zooming class added to body');
+            assert.ok(document.body.classList.contains(UI_CLASSES.ZOOMING), 'zooming class added to body');
 
-            document.body.classList.remove('is-zooming');
+            document.body.classList.remove(UI_CLASSES.ZOOMING);
         });
     });
 
@@ -443,7 +433,7 @@
 
             document.dispatchEvent(touchEvent);
 
-            assert.ok(document.body.classList.contains('is-zooming'), 'Applies "is-zooming" class to the document body');
+            assert.ok(document.body.classList.contains(UI_CLASSES.ZOOMING), 'Applies "zooming" class to the document body');
             assert.equal(pinchState.initialDistance, 100, 'Calculates the correct Math.hypot initial pinch distance');
             assert.ok(typeof pinchState.initialScale === 'number', 'Sets pinchState.initialScale based on CSS variables');
             assert.strictEqual(gameState.dragState.activePlate, null, 'activePlate is cleared out');
@@ -902,18 +892,18 @@
             renderSolutionList();
 
             const staleHole = gameState.blocks[1].el.querySelector('.hole');
-            staleHole.classList.add('glow-white');
+            staleHole.classList.add(UI_CLASSES.GLOW);
             gameState.glowingHoles.push(staleHole)
 
             currentStepIndex = 0;
             updatePlaybackUI();
 
-            assert.ok(staleHole.classList.contains('glow-white'), 'Stale hole retains glow immediately after update');
+            assert.ok(staleHole.classList.contains(UI_CLASSES.GLOW), 'Stale hole retains glow immediately after update');
             assert.ok(gameState.glowingHoles.includes(staleHole), 'Stale hole remains in the cache array immediately after update');
 
             clock.tick(250);
 
-            assert.notOk(staleHole.classList.contains('glow-white'), 'Stale hole loses glow-white class precisely after 250ms timeout');
+            assert.notOk(staleHole.classList.contains(UI_CLASSES.GLOW), 'Stale hole loses glow-white class precisely after 250ms timeout');
             assert.strictEqual(staleHole.glowTimeoutId, null, 'Timeout ID on the element is cleaned up');
             assert.notOk(gameState.glowingHoles.includes(staleHole), 'Stale hole is removed from the gameState.glowingHoles cache');
         });
@@ -946,13 +936,13 @@
             await clock.tickAsync(SHORT_PRESS_DURATION + 1);
 
             assert.equal(masterBlock.group[2], 1, 'First long press creates a forward link (1)');
-            assert.ok(targetBlock.el.classList.contains('linked-highlight'), 'Adds linked-highlight class');
+            assert.ok(targetBlock.el.classList.contains(UI_CLASSES.LINKED), 'Adds linked class');
 
             longPress(2);
             await clock.tickAsync(SHORT_PRESS_DURATION + 1);
 
             assert.equal(masterBlock.group[2], -1, 'Second long press switches to a reverse link (-1)');
-            assert.ok(targetBlock.el.classList.contains('linked-highlight-reverse'), 'Changes to reverse class');
+            assert.ok(targetBlock.el.classList.contains(UI_CLASSES.RINKED), 'Changes to reverse class');
 
             longPress(2);
             await clock.tickAsync(SHORT_PRESS_DURATION + 1);
@@ -981,8 +971,8 @@
             assert.equal(gameState.activeLinkerId, null, 'Remove linker');
             assert.notOk(masterBlock.el.classList.contains('selected'), 'Removes selected');
 
-            assert.ok(masterBlock.el.classList.contains('is-touched'), 'Hover preview retains is-touched on the deslected plate');
-            assert.ok(targetBlock.el.classList.contains('linked-highlight'), 'Target block is highlighted by hover preview');
+            assert.ok(masterBlock.el.classList.contains(UI_CLASSES.TOUCHED), 'Hover preview retains touched on the deslected plate');
+            assert.ok(targetBlock.el.classList.contains(UI_CLASSES.LINKED), 'Target block is highlighted by hover preview');
         });
 
         QUnit.test('deselect finger still on plate (Mobile)', async assert => {
@@ -1024,8 +1014,8 @@
 
             assert.equal(gameState.activeLinkerId, null, 'Unsets the activeLinkerId back to null');
             assert.notOk(masterBlock.el.classList.contains('selected'), 'Removes the selected UI class');
-            assert.ok(masterBlock.el.classList.contains('is-touched'), 'Hover preview retains is-touched on the deslected plate');
-            assert.ok(targetBlock.el.classList.contains('linked-highlight'), 'Target block is highlighted by hover preview');
+            assert.ok(masterBlock.el.classList.contains(UI_CLASSES.TOUCHED), 'Hover preview retains touched on the deslected plate');
+            assert.ok(targetBlock.el.classList.contains(UI_CLASSES.LINKED), 'Target block is highlighted by hover preview');
         });
 
         QUnit.test('deselect finger move out of plate (Mobile)', async assert => {
@@ -1039,8 +1029,8 @@
             gameState.dragState.activePlate = masterBlock.el;
             masterBlock.el.classList.add('selected');
 
-            masterBlock.el.classList.add('is-touched');
-            targetBlock.el.classList.add('linked-highlight');
+            masterBlock.el.classList.add(UI_CLASSES.TOUCHED);
+            targetBlock.el.classList.add(UI_CLASSES.LINKED);
             gameState.isHovering = true;
 
             const touchStartObj = new Touch({
@@ -1139,8 +1129,8 @@
             assert.equal(gameState.activeLinkerId, null, 'Unsets the activeLinkerId');
             assert.notOk(masterBlock.el.classList.contains('selected'), 'Removes selection');
 
-            assert.notOk(masterBlock.el.classList.contains('is-touched'), 'Leave hover');
-            assert.notOk(targetBlock.el.classList.contains('linked-highlight'), 'Do not colored');
+            assert.notOk(masterBlock.el.classList.contains(UI_CLASSES.TOUCHED), 'Leave hover');
+            assert.notOk(targetBlock.el.classList.contains(UI_CLASSES.LINKED), 'Do not colored');
         });
 
     });

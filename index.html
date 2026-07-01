@@ -583,12 +583,12 @@
             box-shadow: inset 0 0 20px rgba(102, 212, 55, 0.3), 0 0 15px rgba(102, 212, 55, 0.5);
         }
 
-        .plate.linked-highlight .front-face {
+        .plate.linked .front-face {
             border-color: #37a1d4;
             box-shadow: inset 0 0 20px rgba(55, 161, 212, 0.3), 0 0 15px rgba(55, 161, 212, 0.5);
         }
 
-        .plate.linked-highlight-reverse .front-face {
+        .plate.rinked .front-face {
             border-color: #d43737;
             box-shadow: inset 0 0 20px rgba(212, 55, 55, 0.3), 0 0 15px rgba(212, 55, 55, 0.5);
         }
@@ -612,7 +612,7 @@
                 background: #7aef48;
             }
 
-            .plate.glow:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow):hover .front-face {
+            .plate.glow:not(.selected, .linked, .rinked, .selected-glow):hover .front-face {
                 border-color: rgba(255, 255, 255, 0.9);
                 transition: border-color 0.1s, box-shadow 0.1s;
             }
@@ -629,12 +629,12 @@
             }
         }
 
-        .plate.is-touched:not(.selected, .linked-highlight, .linked-highlight-reverse, .selected-glow) .front-face {
+        .plate.touched:not(.selected, .linked, .rinked, .selected-glow) .front-face {
             border-color: rgba(255, 255, 255, 0.9);
             transition: border-color 0.05s, box-shadow 0.05s;
         }
 
-        .plate.is-touched.selected-glow .front-face {
+        .plate.touched.selected-glow .front-face {
             border-color: #d4d137;
             box-shadow: inset 0 0 20px rgba(212, 209, 55, 0.3), 0 0 15px rgba(212, 204, 55, 0.5);
             transition: border-color 0.05s, box-shadow 0.05s;

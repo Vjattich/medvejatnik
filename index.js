@@ -1,3 +1,29 @@
+const UI_CLASSES = {
+    TOUCHED: 'touched',
+    SELECTED: 'selected',
+    LINKED: 'linked',
+    RINKED: 'rinked',
+    GLOW: 'glow-white',
+    ACTIVE_STEP: 'active-step',
+    SHOW_STRETCH: 'show-stretch',
+    EXPANDED: 'is-expanded',
+    EXPANDED_PARENT: 'is-expanded-parent',
+    PRESSING: 'is-pressing',
+    DISABLED_BTN: 'disabled-btn',
+    INSPECT_BTN: 'inspect-btn',
+    PLATE: 'plate',
+    HOLE: 'hole',
+    ZOOMING: 'is-zooming'
+};
+
+const ACTIONS = {
+    DESELECT: 'deselect',
+    DESELECT_DRAG_END: 'deselectDragEnd',
+    DRAG_START: 'handleDragStart',
+    DRAG_MOVE: 'handleDragMove',
+    DRAG_END: 'handleDragEnd'
+};
+
 const lock = document.getElementById('lock'),
     sizeInput = document.getElementById('sizeInput'),
     countInput = document.getElementById('countInput'),
@@ -16,7 +42,9 @@ const lock = document.getElementById('lock'),
     statusMsg = document.getElementById('statusMsg'),
     solutionList = document.getElementById('solutionList'),
     expandBtn = document.getElementById('expandBtn'),
-    inspectorRow = document.getElementById('inspectorRow'),
+    inspectorRow = document.getElementById('inspectorRow');
+
+const
     PIN_RAISED = -10,
     PIN_MIDDLE = -5,
     PIN_UNDER = 1,
@@ -72,9 +100,7 @@ const lock = document.getElementById('lock'),
     PLATE_TEMPLATE.innerHTML = `<div class="plate glow"><div class="front-face"></div><div class="top-face">${holesHtml}</div><div class="right-face"></div><div class="bottom-face"></div><div class="left-face"></div>${tubeHtml}</div>`;
 })();
 
-
-const
-    gameState = {
+const gameState = {
         isInteracted: false,
         blocks: [],
         activeLinkerId: null,
@@ -97,15 +123,13 @@ const
 
 function setInitialState() {
     pinchState.initialScale = gameState.isMobile
-        // The plate mechanism is ~340px wide. We scale it down to fit the device width.
-        // We subtract 140px to account for some padding/margins.
         ? Math.max(0.3, Math.min((window.innerWidth - 140) / 340, 1))
-        : 1.4
-    pinchState.lastScale = pinchState.initialScale
+        : 1.4;
+    pinchState.lastScale = pinchState.initialScale;
     sizeInput.value = pinchState.initialScale;
     document.documentElement.style.setProperty('--block-scale', pinchState.initialScale);
     if (navigator.getGamepads) {
-        let gamepads  = navigator.getGamepads();
+        let gamepads = navigator.getGamepads();
     }
 }
 
@@ -125,8 +149,8 @@ function setStatus(text, type = 'info') {
     statusMsg.className = `status-message status-${type}`;
     const row = statusMsg.closest('.play-status-row');
     if ('' === text) {
-        row.classList.remove('show-stretch');
-    } else row.classList.add('show-stretch');
+        row.classList.remove(UI_CLASSES.SHOW_STRETCH);
+    } else row.classList.add(UI_CLASSES.SHOW_STRETCH);
 }
 
 function clearSolutionUI() {
@@ -136,22 +160,22 @@ function clearSolutionUI() {
     playBtn.style.display = 'none';
     playBtn.textContent = '▶ Play';
     restartSeqBtn.style.display = 'none';
-    stepControlsRow.classList.remove('show-stretch');
-    squashLabel.classList.remove('show-stretch');
+    stepControlsRow.classList.remove(UI_CLASSES.SHOW_STRETCH);
+    squashLabel.classList.remove(UI_CLASSES.SHOW_STRETCH);
     setStatus('', 'info');
     solveBtn.disabled = false;
 
-    gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
+    gameState.blocks.forEach(b => b.el.classList.remove(UI_CLASSES.TOUCHED, UI_CLASSES.SELECTED, UI_CLASSES.LINKED, UI_CLASSES.RINKED));
 
     gameState.glowingHoles.forEach(h => {
         clearTimeout(h.glowTimeoutId);
         h.glowTimeoutId = null;
-        h.classList.remove('glow-white');
+        h.classList.remove(UI_CLASSES.GLOW);
     });
     gameState.glowingHoles = [];
 
     solutionList.innerHTML = '';
-    if (solutionList.classList.contains('is-expanded')) toggleExpandList(false);
+    if (solutionList.classList.contains(UI_CLASSES.EXPANDED)) toggleExpandList(false);
 }
 
 function compactSetup() {
@@ -226,14 +250,14 @@ function updatePlaybackUI() {
     restartSeqBtn.disabled = isPlaying;
     solveBtn.disabled = isPlaying;
 
-    Array.from(solutionList.children).forEach(el => el.classList.remove('active-step'));
-    gameState.blocks.forEach(b => b.el.classList.remove('is-touched', 'selected', 'linked-highlight', 'linked-highlight-reverse'));
+    Array.from(solutionList.children).forEach(el => el.classList.remove(UI_CLASSES.ACTIVE_STEP));
+    gameState.blocks.forEach(b => b.el.classList.remove(UI_CLASSES.TOUCHED, UI_CLASSES.SELECTED, UI_CLASSES.LINKED, UI_CLASSES.RINKED));
 
     if (currentStepIndex < currentSolution.length) {
         let activeDomIndex = moveMap[currentStepIndex];
         if (undefined !== activeDomIndex && solutionList.children[activeDomIndex]) {
             let activeEl = solutionList.children[activeDomIndex];
-            activeEl.classList.add('active-step');
+            activeEl.classList.add(UI_CLASSES.ACTIVE_STEP);
             if (0 === currentStepIndex) {
                 solutionList.scrollTop = 0;
             } else {
@@ -247,9 +271,9 @@ function updatePlaybackUI() {
 
         if (activeBlock) {
             if ('right' === nextMove.direction) {
-                activeBlock.el.classList.add('linked-highlight');
+                activeBlock.el.classList.add(UI_CLASSES.LINKED);
             } else {
-                activeBlock.el.classList.add('linked-highlight-reverse');
+                activeBlock.el.classList.add(UI_CLASSES.RINKED);
             }
 
             let moveCount = 0;
@@ -269,7 +293,7 @@ function updatePlaybackUI() {
             let targetHoleIndex = nextMove.direction === 'right' ? currentPinHole - step : currentPinHole + step;
 
             if (targetHoleIndex >= 0 && targetHoleIndex <= 6) {
-                let holes = activeBlock.el.querySelectorAll('.hole');
+                let holes = activeBlock.el.querySelectorAll(`.${UI_CLASSES.HOLE}`);
                 if (holes[targetHoleIndex]) elementsToGlow.push(holes[targetHoleIndex]);
             }
         }
@@ -277,9 +301,8 @@ function updatePlaybackUI() {
         gameState.glowingHoles.forEach(h => {
             if (!elementsToGlow.includes(h) && !h.glowTimeoutId) {
                 h.glowTimeoutId = setTimeout(() => {
-                    h.classList.remove('glow-white');
+                    h.classList.remove(UI_CLASSES.GLOW);
                     h.glowTimeoutId = null;
-                    // Safely remove from cache once timeout finishes
                     gameState.glowingHoles = gameState.glowingHoles.filter(glowing => glowing !== h);
                 }, 250);
             }
@@ -290,9 +313,8 @@ function updatePlaybackUI() {
                 clearTimeout(h.glowTimeoutId);
                 h.glowTimeoutId = null;
             }
-            if (!h.classList.contains('glow-white')) {
-                h.classList.add('glow-white');
-                // Ensure it's pushed to our cache array
+            if (!h.classList.contains(UI_CLASSES.GLOW)) {
+                h.classList.add(UI_CLASSES.GLOW);
                 if (!gameState.glowingHoles.includes(h)) {
                     gameState.glowingHoles.push(h);
                 }
@@ -303,7 +325,7 @@ function updatePlaybackUI() {
         gameState.glowingHoles.forEach(h => {
             if (!h.glowTimeoutId) {
                 h.glowTimeoutId = setTimeout(() => {
-                    h.classList.remove('glow-white');
+                    h.classList.remove(UI_CLASSES.GLOW);
                     h.glowTimeoutId = null;
                     gameState.glowingHoles = gameState.glowingHoles.filter(glowing => glowing !== h);
                 }, 250);
@@ -311,7 +333,7 @@ function updatePlaybackUI() {
         });
         let lastDomIndex = moveMap[currentSolution.length - 1];
         if (undefined !== lastDomIndex && solutionList.children[lastDomIndex]) {
-            solutionList.children[lastDomIndex].classList.add('active-step');
+            solutionList.children[lastDomIndex].classList.add(UI_CLASSES.ACTIVE_STEP);
             solutionList.children[lastDomIndex].scrollIntoView({behavior: 'smooth', block: 'nearest'});
         }
     }
@@ -379,8 +401,8 @@ solveBtn.addEventListener('click', async () => {
             setStatus(`Solution found: ${result.moves.length} moves!`, 'success');
             playBtn.style.display = 'block';
             restartSeqBtn.style.display = 'block';
-            stepControlsRow.classList.add('show-stretch');
-            squashLabel.classList.add('show-stretch');
+            stepControlsRow.classList.add(UI_CLASSES.SHOW_STRETCH);
+            squashLabel.classList.add(UI_CLASSES.SHOW_STRETCH);
             renderSolutionList();
         }
     } catch (error) {
@@ -390,6 +412,7 @@ solveBtn.addEventListener('click', async () => {
         if (!isPlaying) solveBtn.disabled = false;
     }
 });
+
 playBtn.addEventListener('click', async () => {
     if (null === currentSolution || currentStepIndex >= currentSolution.length) return;
     if (isPlaying) {
@@ -428,9 +451,7 @@ restartSeqBtn.addEventListener('click', () => {
     updatePlaybackUI();
 });
 
-
 function vibrate(duration) {
-
     if (false === gameState.isInteracted) {
         return;
     }
@@ -444,7 +465,6 @@ function vibrate(duration) {
     for (let gamepad of gamepads) if (gamepad && gamepad.vibrationActuator && typeof gamepad.vibrationActuator.playEffect === 'function') {
         gamepad.vibrationActuator.playEffect('dual-rumble', {
             startDelay: 0,
-            //for gamepads its increesad
             duration: duration * 4,
             weakMagnitude: 1.0,
             strongMagnitude: 0.0
@@ -466,7 +486,6 @@ function updateSinglePinMove(b, outTime) {
 }
 
 function updatePinState(block, options = {}) {
-
     if (false === gameState.isInteracted) {
         return;
     }
@@ -510,7 +529,7 @@ function updatePinState(block, options = {}) {
         return;
     }
 
-   if ('false' === pin.dataset.wasOverHole) {
+    if ('false' === pin.dataset.wasOverHole) {
         pin.dataset.wasOverHole = 'true';
         vibrate(15);
     }
@@ -522,7 +541,6 @@ function updatePinState(block, options = {}) {
 }
 
 function updateBlockState(b, options = {}) {
-
     const {x = null, transition = null, pinTransition = null, pinTime = null} = options;
 
     b.x = x;
@@ -534,7 +552,6 @@ function updateBlockState(b, options = {}) {
     if (null === pinTime) {
         updatePinState(b, {wrapperTransition: transition, pinTransition: pinTransition});
     } else {
-        //with time it should goes back after setTimeout
         updateSinglePinMove(b, pinTime);
     }
 }
@@ -547,7 +564,7 @@ function updateHoverPreview(plate) {
     const hoveredBlock = gameState.blocks.find(b => b.el === plate);
     if (!hoveredBlock) return;
 
-    plate.classList.add('is-touched');
+    plate.classList.add(UI_CLASSES.TOUCHED);
     gameState.hoveredElements.push(plate);
     gameState.isHovering = true;
 
@@ -560,21 +577,21 @@ function updateHoverPreview(plate) {
         const member = gameState.blocks.find(b => b.id === id);
         if (!member) return;
 
-        member.el.classList.add(1 === hoveredBlock.group[id] ? 'linked-highlight' : 'linked-highlight-reverse');
+        member.el.classList.add(1 === hoveredBlock.group[id] ? UI_CLASSES.LINKED : UI_CLASSES.RINKED);
         gameState.hoveredElements.push(member.el);
     });
 }
 
 function clearHoverPreview(isEndHovering) {
     if (gameState.activeLinkerId || currentSolution) return;
-    if (gameState.lastAction === 'deselect') {
-        gameState.lastAction = 'deselectDragEnd';
+    if (gameState.lastAction === ACTIONS.DESELECT) {
+        gameState.lastAction = ACTIONS.DESELECT_DRAG_END;
         return;
     }
     if (!gameState.isHovering && !isEndHovering) return;
 
     if (gameState.hoveredElements.length > 0) {
-        gameState.hoveredElements.forEach(el => el.classList.remove('linked-highlight', 'linked-highlight-reverse', 'is-touched'));
+        gameState.hoveredElements.forEach(el => el.classList.remove(UI_CLASSES.LINKED, UI_CLASSES.RINKED, UI_CLASSES.TOUCHED));
         gameState.hoveredElements = [];
     }
 
@@ -582,7 +599,6 @@ function clearHoverPreview(isEndHovering) {
 }
 
 function createPlate(id, prevX, zPos) {
-
     const
         plateNode = PLATE_TEMPLATE.content.cloneNode(true),
         plate = plateNode.firstElementChild;
@@ -607,7 +623,6 @@ function createPlate(id, prevX, zPos) {
     return { plate, pinWrapper, pin };
 }
 
-
 function renderBlocks() {
     const
         count = +countInput.value,
@@ -623,11 +638,9 @@ function renderBlocks() {
     gameState.blocks = [];
     gameState.activeLinkerId = null;
 
-    //for batch inserts
     const fragment = document.createDocumentFragment();
 
     for (let i = 0; i < count; i++) {
-
         const
             id = i + 1,
             zPos = (centerOffset - i) * spacing;
@@ -671,17 +684,16 @@ function renderBlocks() {
     }
 
     lock.appendChild(fragment);
-
     renderInspectorRow();
 }
 
 sizeInput.addEventListener('input', (e) => document.documentElement.style.setProperty('--block-scale', e.target.value));
 
-//todo need event here or can manual call renderBlocks(),clearSolutionUI()
 countInput.addEventListener('input', (e) => {
-    renderBlocks()
-    clearSolutionUI()
+    renderBlocks();
+    clearSolutionUI();
 });
+
 btnDecrease.addEventListener('click', () => {
     let currentValue = +countInput.value,
         min = +countInput.min || 1;
@@ -690,6 +702,7 @@ btnDecrease.addEventListener('click', () => {
         countInput.dispatchEvent(new Event('input'));
     }
 });
+
 btnIncrease.addEventListener('click', () => {
     let currentValue = +countInput.value,
         max = +countInput.max || 20;
@@ -700,11 +713,12 @@ btnIncrease.addEventListener('click', () => {
 });
 
 function toggleExpandList(forceState) {
-    const isExpanded = undefined !== forceState ? forceState : solutionList.classList.toggle('is-expanded');
-    if (undefined !== forceState) solutionList.classList.toggle('is-expanded', forceState);
+    const isExpanded = undefined !== forceState ? forceState : solutionList.classList.toggle(UI_CLASSES.EXPANDED);
+    if (undefined !== forceState) solutionList.classList.toggle(UI_CLASSES.EXPANDED, forceState);
     const parentRow = document.getElementById('stepControlsRow');
-    if (parentRow) parentRow.classList.toggle('is-expanded-parent', isExpanded);
+    if (parentRow) parentRow.classList.toggle(UI_CLASSES.EXPANDED_PARENT, isExpanded);
     expandBtn.textContent = isExpanded ? '▲ Collapse List ▲' : '▼ Expand Full List ▼';
+
     if (isExpanded) {
         const rect = solutionList.getBoundingClientRect(),
             bottomPadding = window.innerHeight * 0.05,
@@ -716,7 +730,7 @@ function toggleExpandList(forceState) {
             if (currentStepIndex === 0) {
                 solutionList.scrollTop = 0;
             } else {
-                const activeStep = solutionList.querySelector('.active-step');
+                const activeStep = solutionList.querySelector(`.${UI_CLASSES.ACTIVE_STEP}`);
                 if (activeStep) activeStep.scrollIntoView({behavior: 'auto', block: 'nearest'});
             }
             setTimeout(() => solutionList.style.scrollBehavior = 'smooth', 50);
@@ -729,7 +743,7 @@ function toggleExpandList(forceState) {
             if (currentStepIndex === 0) {
                 solutionList.scrollTop = 0;
             } else {
-                const activeStep = solutionList.querySelector('.active-step');
+                const activeStep = solutionList.querySelector(`.${UI_CLASSES.ACTIVE_STEP}`);
                 if (activeStep) activeStep.scrollIntoView({behavior: 'auto', block: 'nearest'});
             }
             setTimeout(() => solutionList.style.scrollBehavior = 'smooth', 50);
@@ -741,8 +755,9 @@ expandBtn.addEventListener('click', () => toggleExpandList());
 
 squashMovesCheck.addEventListener('change', () => {
     renderSolutionList();
-    if (solutionList.classList.contains('is-expanded')) toggleExpandList(true);
+    if (solutionList.classList.contains(UI_CLASSES.EXPANDED)) toggleExpandList(true);
 });
+
 resetBtn.addEventListener('click', () => {
     clearSolutionUI();
     gameState.blocks = [];
@@ -753,6 +768,7 @@ resetBtn.addEventListener('click', () => {
     clearTimeout(gameState.dragState.longPressTimer);
     renderBlocks();
 });
+
 renderBlocks();
 
 function getClientX(e) {
@@ -767,38 +783,38 @@ function longPress(clickedId) {
             if (!curBlock) return;
             if (null === gameState.activeLinkerId) {
                 gameState.activeLinkerId = curBlock.id;
-                gameState.dragState.activePlate.classList.add('selected');
+                gameState.dragState.activePlate.classList.add(UI_CLASSES.SELECTED);
                 Object.keys(curBlock.group).forEach(idStr => {
                     let id = +idStr;
                     if (id !== curBlock.id) {
                         let b = gameState.blocks[id - 1];
-                        if (b) if (1 === curBlock.group[id]) b.el.classList.add('linked-highlight'); else b.el.classList.add('linked-highlight-reverse');
+                        if (b) if (1 === curBlock.group[id]) b.el.classList.add(UI_CLASSES.LINKED); else b.el.classList.add(UI_CLASSES.RINKED);
                     }
                 });
-                vibrate(15)
+                vibrate(15);
             } else if (gameState.activeLinkerId === curBlock.id) {
                 gameState.activeLinkerId = null;
-                gameState.dragState.activePlate.classList.remove('selected');
-                gameState.lastAction = 'deselect';
+                gameState.dragState.activePlate.classList.remove(UI_CLASSES.SELECTED);
+                gameState.lastAction = ACTIONS.DESELECT;
                 updateHoverPreview(gameState.dragState.activePlate);
-                vibrate(15)
+                vibrate(15);
                 renderInspectorRow();
             } else {
                 let masterBlock = gameState.blocks[gameState.activeLinkerId - 1];
                 if (masterBlock.group[curBlock.id]) {
                     if (1 === masterBlock.group[curBlock.id]) {
                         masterBlock.group[curBlock.id] = -1;
-                        gameState.dragState.activePlate.classList.remove('linked-highlight');
-                        gameState.dragState.activePlate.classList.add('linked-highlight-reverse');
+                        gameState.dragState.activePlate.classList.remove(UI_CLASSES.LINKED);
+                        gameState.dragState.activePlate.classList.add(UI_CLASSES.RINKED);
                     } else if (-1 === masterBlock.group[curBlock.id]) {
                         delete masterBlock.group[curBlock.id];
-                        gameState.dragState.activePlate.classList.remove('linked-highlight-reverse');
+                        gameState.dragState.activePlate.classList.remove(UI_CLASSES.RINKED);
                     }
                 } else {
                     masterBlock.group[curBlock.id] = 1;
-                    gameState.dragState.activePlate.classList.add('linked-highlight');
+                    gameState.dragState.activePlate.classList.add(UI_CLASSES.LINKED);
                 }
-                vibrate(15)
+                vibrate(15);
             }
         }
     }, gameState.activeLinkerId ? SHORT_PRESS_DURATION : LONG_PRESS_DURATION);
@@ -857,7 +873,6 @@ function updateDragDOM() {
 }
 
 function handleDragStart(e) {
-
     gameState.isInteracted = true;
 
     const touches = e.touches,
@@ -866,7 +881,7 @@ function handleDragStart(e) {
     if (touches) gameState.lastTouchTime = Date.now();
 
     if (touches && touches.length >= 2) {
-        document.body.classList.add('is-zooming');
+        document.body.classList.add(UI_CLASSES.ZOOMING);
 
         const t0 = touches[0], t1 = touches[1];
         pinchState.initialDistance = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
@@ -887,7 +902,7 @@ function handleDragStart(e) {
         return;
     }
 
-    const clickedPlate = e.target.closest('.plate');
+    const clickedPlate = e.target.closest(`.${UI_CLASSES.PLATE}`);
     if (!clickedPlate) return;
 
     if (e.type === 'mousedown') e.preventDefault();
@@ -917,7 +932,6 @@ function handleDragStart(e) {
             dirVal = group[idStr];
 
         if (b) {
-
             dragState.movingGroup.push({ block: b, dir: dirVal, initialX: b.x, currentX: b.x });
             b.el.style.transition = 'none';
             b.pinWrapper.style.transition = 'none';
@@ -934,12 +948,11 @@ function handleDragStart(e) {
 
     dragState.minDeltaX = minD;
     dragState.maxDeltaX = maxD;
-    gameState.lastAction = 'handleDragStart';
+    gameState.lastAction = ACTIONS.DRAG_START;
     longPress(clickedId);
 }
 
 function handleDragMove(e) {
-
     if (e.touches && 2 === e.touches.length) {
         e.preventDefault();
         const t1 = e.touches[0], t2 = e.touches[1];
@@ -971,7 +984,7 @@ function handleDragMove(e) {
     if (!dragRafId) {
         dragRafId = requestAnimationFrame(updateDragDOM);
     }
-    gameState.lastAction = 'handleDragMove';
+    gameState.lastAction = ACTIONS.DRAG_MOVE;
 }
 
 function handleDragEnd(e) {
@@ -1031,14 +1044,14 @@ function handleDragEnd(e) {
     dragState.movingGroup.length = 0;
     dragState.isDragging = false;
 
-    if ('deselectDragEnd' !== gameState.lastAction) {
-        gameState.lastAction = 'handleDragEnd';
+    if (ACTIONS.DESELECT_DRAG_END !== gameState.lastAction) {
+        gameState.lastAction = ACTIONS.DRAG_END;
     }
 
     if (e?.type === 'mouseup') {
         const timeSinceTouch = Date.now() - (gameState.lastTouchTime || 0);
-        if (timeSinceTouch >= 500 && 'deselectDragEnd' !== gameState.lastAction) {
-            const plateUnderCursor = document.elementFromPoint(e.clientX, e.clientY)?.closest('.plate');
+        if (timeSinceTouch >= 500 && ACTIONS.DESELECT_DRAG_END !== gameState.lastAction) {
+            const plateUnderCursor = document.elementFromPoint(e.clientX, e.clientY)?.closest(`.${UI_CLASSES.PLATE}`);
             if (plateUnderCursor) updateHoverPreview(plateUnderCursor);
         }
     }
@@ -1100,18 +1113,16 @@ function setupLongPress(button, stepFunction) {
     let isLongPressExecuted = false;
 
     const startPress = (e) => {
-        // Prevent any touch interaction if the button is disabled
         if (button.disabled) return;
-
         if (!gameState.isMobile) return;
         if (null === currentSolution || isPlaying) return;
 
         isLongPressExecuted = false;
 
-        animTimer = setTimeout(() => button.classList.add('is-pressing'), 150);
+        animTimer = setTimeout(() => button.classList.add(UI_CLASSES.PRESSING), 150);
 
         pressTimer = setTimeout(() => {
-            button.classList.remove('is-pressing');
+            button.classList.remove(UI_CLASSES.PRESSING);
             isLongPressExecuted = true;
             stepFunction(true);
             if (navigator.vibrate) navigator.vibrate(50);
@@ -1121,7 +1132,7 @@ function setupLongPress(button, stepFunction) {
     const clearPress = () => {
         clearTimeout(animTimer);
         clearTimeout(pressTimer);
-        button.classList.remove('is-pressing');
+        button.classList.remove(UI_CLASSES.PRESSING);
     };
 
     button.addEventListener('touchstart', startPress, {passive: true});
@@ -1154,7 +1165,7 @@ function renderInspectorRow() {
     });
     for (let i = 0; i < MAX_PLATES; i++) {
         const btn = document.createElement('button');
-        btn.className = 'inspect-btn';
+        btn.className = UI_CLASSES.INSPECT_BTN;
         btn.textContent = i + 1;
         if (i < gameState.blocks.length) {
             const block = gameState.blocks[i];
@@ -1179,7 +1190,7 @@ function renderInspectorRow() {
                 btn.style.background = '#555';
             }, {passive: false});
         } else {
-            btn.classList.add('disabled-btn');
+            btn.classList.add(UI_CLASSES.DISABLED_BTN);
             btn.addEventListener('touchstart', (e) => e.preventDefault(), {passive: false});
         }
         inspectorRow.appendChild(btn);
@@ -1191,7 +1202,7 @@ inspectorRow.addEventListener('touchmove', (e) => {
     e.preventDefault();
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (target && target.classList.contains('inspect-btn') && !target.classList.contains('disabled-btn')) {
+    if (target && target.classList.contains(UI_CLASSES.INSPECT_BTN) && !target.classList.contains(UI_CLASSES.DISABLED_BTN)) {
         if (window.currentHoveredBtn !== target) {
             if (window.currentHoveredBtn) {
                 clearHoverPreview(true);
@@ -1209,6 +1220,7 @@ inspectorRow.addEventListener('touchmove', (e) => {
         }
     }
 }, {passive: false});
+
 const releaseSlidingTouch = () => {
     if (window.currentHoveredBtn) {
         clearHoverPreview(true);
@@ -1216,6 +1228,7 @@ const releaseSlidingTouch = () => {
         window.currentHoveredBtn = null;
     }
 };
+
 inspectorRow.addEventListener('touchend', releaseSlidingTouch);
 inspectorRow.addEventListener('touchcancel', releaseSlidingTouch);
 
